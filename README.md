@@ -1,4 +1,4 @@
-# ExoSignal Trough Manifesto
+# Observer Selection Bias: Spatiotemporal and Energy Threshold Models in Interstellar Radio Communication
 ## 摘要 / Abstract
 This project establishes a dynamic model utilizing 3D visualization and astrophysical calculations to explore the feasibility of interstellar radio communication. While it is commonly assumed that potential extraterrestrial intelligence might share a similar technological developmental stage with Earth, our physically grounded model demonstrates that Earth is inevitably positioned in a "technology trough" on an observable cosmic scale. This phenomenon does not imply an absence of mediocre civilizations, but rather highlights an observer selection bias strictly dictated by physical filtering mechanisms.
 
