@@ -12,10 +12,10 @@ The propagation of electromagnetic waves is bounded by the speed of light in a v
 Following the inverse-square law for isotropic radiation, electromagnetic signal flux attenuates exponentially with the square of the distance. Using the minimum detectable flux of Earth's most sensitive single-dish radio telescopes (e.g., FAST) as a baseline, the required transmission power across kiloparsec scales easily exceeds Earth's current total planetary power consumption. The model calculations indicate that the transmitting source for deep-space communication must, with high probability, possess stellar-scale energy manipulation capabilities, aligning with a Kardashev Type II civilization or higher.
 
 ### 1.光速延遲與時空不同步 (Spatiotemporal Asynchrony due to Light-Speed Delay)
-電磁波的傳播受限於真空光速（$c$)當地球接收到來自距離 $d$ 光年外的星系訊號時，該訊號必然發射於 $d$ 年前。因此，訊號源的無線電技術發展時間線，在時間軸上必定領先地球相應的絕對年份。距離越遠的觀測目標，其技術領先的下限（Lower bound）就越顯著。
+電磁波的傳播受限於真空光速c當地球接收到來自距離 $d$ 光年外的星系訊號時，該訊號必然發射於 $d$ 年前。因此，訊號源的無線電技術發展時間線，在時間軸上必定領先地球相應的絕對年份。距離越遠的觀測目標，其技術領先的下限（Lower bound）就越顯著。
 
 ### 2.平方反比衰減與能量閾值 (Inverse-Square Attenuation and Energy Thresholds)
-依據全向輻射的平方反比定律（Inverse-square law），電磁訊號通量隨距離的平方呈指數級衰減。以目前地球最具代表性的單口徑射電望遠鏡（如 FAST）之最低可偵測通量為基準，跨越千光年尺度的通訊所需之發射功率（$P_{tx}$），將輕易突破地球現有的總發電量。模型運算顯示，深空通訊的發射端極大概率需具備卡爾達肖夫指數（Kardashev Scale）第二型甚至更高的恆星級能量控制能力。
+依據全向輻射的平方反比定律（Inverse-square law），電磁訊號通量隨距離的平方呈指數級衰減。以目前地球最具代表性的單口徑射電望遠鏡（如 FAST）之最低可偵測通量為基準，跨越千光年尺度的通訊所需之發射功率P，將輕易突破地球現有的總發電量。模型運算顯示，深空通訊的發射端極大概率需具備卡爾達肖夫指數（Kardashev Scale）第二型甚至更高的恆星級能量控制能力。
 
 ## 結論 / Conclusion
 
