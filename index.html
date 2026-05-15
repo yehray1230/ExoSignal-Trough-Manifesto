@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Exoplanet Signal Radar</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #030816; /* 深色宇宙背景 */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+        }
+        canvas { display: block; }
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 360px;
+            max-height: calc(100vh - 40px);
+            display: flex;
+            flex-direction: column;
+            pointer-events: none; /* 讓滑鼠事件穿透到 3D 場景 */
+        }
+        #right-ui-layer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 360px;
+            max-height: calc(100vh - 40px);
+            display: flex;
+            flex-direction: column;
+            pointer-events: none;
+        }
+        .glass-panel {
+            background: rgba(16, 24, 48, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            padding: 24px;
+            color: #e2e8f0;
+            pointer-events: auto; /* 恢復 UI 元件的滑鼠事件 */
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        h1 { margin: 0 0 16px 0; font-size: 1.3rem; font-weight: 600; letter-spacing: 1px; color: #fff; }
+        select {
+            width: 100%; padding: 10px; background: rgba(0, 0, 0, 0.3); color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; outline: none; margin-bottom: 15px;
+            font-size: 0.95rem; cursor: pointer;
+        }
+        select option { background: #1a202c; }
+        
+        .planet-list {
+            flex-grow: 1; overflow-y: auto; overflow-x: hidden;
+            display: flex; flex-direction: column; gap: 10px;
+            padding-right: 8px;
+        }
+        /* 自訂卷軸 */
+        .planet-list::-webkit-scrollbar { width: 6px; }
+        .planet-list::-webkit-scrollbar-track { background: transparent; }
+        .planet-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+        .planet-list::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+        
+        .planet-item {
+            padding: 12px 16px; background: rgba(255, 255, 255, 0.04); border-radius: 10px; cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        .planet-item:hover { background: rgba(255, 255, 255, 0.08); transform: translateX(4px); }
+        .planet-item.active { background: rgba(56, 189, 248, 0.15); border-color: rgba(56, 189, 248, 0.4); box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
+        
+        .planet-name { font-weight: 600; font-size: 1.05rem; color: #fff; }
+        .planet-dist { font-size: 0.85rem; color: #94a3b8; margin-top: 6px; }
+        .habitable-badge { color: #22c55e; font-size: 0.8rem; margin-left: 6px; font-weight: bold; }
+        
+        #info-panel { display: none; }
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.95rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;}
+        .info-label { color: #94a3b8; }
+        .info-value { font-weight: 600; text-align: right; color: #e2e8f0; }
+        
+        .nasa-btn {
+            display: block;
+            margin-top: 15px;
+            padding: 10px 15px;
+            text-align: center;
+            background: rgba(56, 189, 248, 0.1);
+            color: #38bdf8;
+            text-decoration: none;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.1);
+        }
+        .nasa-btn:hover {
+            background: rgba(56, 189, 248, 0.25);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+            transform: translateY(-2px);
+            color: #fff;
+        }
+
+        #timeline-layer {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 70%;
+            max-width: 800px;
+            pointer-events: none;
+            z-index: 100;
+        }
+        #timeline-panel {
+            margin-bottom: 0;
+            text-align: center;
+            background: rgba(16, 24, 48, 0.6);
+            padding: 20px 30px;
+            display: none;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        #timeline-title {
+            font-size: 0.9rem;
+            color: #38bdf8;
+            font-weight: 600;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+        #timeline-content {
+            font-size: 1.15rem;
+            line-height: 1.6;
+            color: #e2e8f0;
+            min-height: 55px; /* keep height stable during typing */
+        }
+        #timeline-bar-outer {
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+            height: 70px;
+            margin-top: 35px;
+        }
+        #timeline-bar-inner {
+            width: 300%;
+            height: 100%;
+            position: absolute;
+            left: 50%;
+            transition: transform 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .time-axis {
+            width: 100%;
+            height: 2px;
+            background: rgba(255,255,255,0.2);
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .earth-marker {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94a3b8;
+            box-shadow: 0 0 5px #94a3b8;
+        }
+        .earth-marker-year {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            color: #94a3b8;
+            white-space: nowrap;
+        }
+        .earth-marker-name {
+            position: absolute;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            color: #e2e8f0;
+            white-space: nowrap;
+        }
+        .timeline-marker {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .marker-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #fbbf24;
+            box-shadow: 0 0 10px #fbbf24;
+            border: 2px solid #030816;
+        }
+        #opponent-label-top {
+            position: absolute;
+            top: -26px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            color: #fbbf24;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+        #label-marker-tech {
+            margin-top: 22px;
+            font-size: 0.8rem;
+            color: #fbbf24;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+
+        /* Loading Screen */
+        #loading {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #030816; display: flex; justify-content: center; align-items: center;
+            color: white; font-size: 1.5rem; z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">載入星體資料中... Loading...</div>
+
+    <div id="ui-layer">
+        <div class="glass-panel">
+            <h1 id="title-text">系外行星射電訊號偵測</h1>
+            <div id="premise-text" style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 12px; line-height: 1.4;"></div>
+            <select id="lang-select">
+                <option value="zh">繁體中文</option>
+                <option value="en">English (US)</option>
+                <option value="ja">日本語</option>
+            </select>
+        </div>
+        
+        <div class="glass-panel planet-list" id="planet-list">
+            <!-- List will be populated by JS -->
+        </div>
+    </div>
+
+    <div id="right-ui-layer">
+        <div class="glass-panel" id="info-panel">
+            <div class="info-row"><span class="info-label" id="label-name">名稱</span><span class="info-value" id="val-name">-</span></div>
+            <div class="info-row"><span class="info-label" id="label-host">恆星</span><span class="info-value" id="val-host">-</span></div>
+            <div class="info-row"><span class="info-label" id="label-dist">距離</span><span class="info-value" id="val-dist">-</span></div>
+            <div class="info-row"><span class="info-label" id="label-signal">訊號發出年份</span><span class="info-value" id="val-signal">-</span></div>
+            <div class="info-row" style="border:none;"><span class="info-label" id="label-power">所需功率</span><span class="info-value" id="val-power">-</span></div>
+            
+            <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 15px;">
+                <div style="height: 160px; width: 100%;">
+                    <canvas id="power-chart"></canvas>
+                </div>
+                <div id="eval-text" style="font-size: 0.85rem; margin-top: 15px; line-height: 1.5; font-weight: 500;"></div>
+                <a id="nasa-link" class="nasa-btn" href="#" target="_blank" rel="noopener noreferrer" style="display: none;">🔗 深入探索 (NASA 官方資料)</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="timeline-layer">
+        <div id="timeline-panel">
+            <div id="timeline-title">當此訊號發射時的地球...</div>
+            <div id="timeline-content"></div>
+            
+            <div id="timeline-bar-container" style="display: none; margin-bottom: 5px;">
+                <div id="timeline-bar-outer">
+                    <div id="timeline-bar-inner">
+                        <div class="time-axis"></div>
+                        <!-- Earth Milestones dynamically generated -->
+                        <div id="marker-tech" class="timeline-marker" style="left: 50%; z-index: 10;">
+                            <div id="opponent-label-top">對方所需技術</div>
+                            <div class="marker-dot"></div>
+                            <div id="label-marker-tech"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="timeline-countdown" style="margin-top: 15px; font-size: 0.95rem; color: #fbbf24; font-weight: 500;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="data.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        // Language Data
+        const i18n = {
+            zh: {
+                title: "系外行星射電訊號偵測",
+                premise: "前提假設：如果我們現在 (2026年) 收到了外星訊號",
+                ly: "光年",
+                name: "行星名稱",
+                host: "所屬恆星",
+                dist: "距離",
+                signal: "訊號發出年份",
+                power: "通訊所需功率",
+                habitable: " (潛在宜居)",
+                techEval1: "對方所需的發射功率為 ",
+                techEval2: " 瓦特 (焦耳/秒)，這相當於地球在西元 ",
+                techEval3: " 年的無線電技術水準。",
+                techBeyond: "此功率需求已超越地球現有水準，屬於第一型文明以上的領域。",
+                timelineTitle: "當此訊號發射時的地球...",
+                markerSignal: "訊號發射",
+                markerTech: "對方所需水準",
+                techWait1: "距地球發展出同等無線電技術 (西元 ",
+                techWait2: " 年) 還有 ",
+                techWait3: " 年",
+                techAlready: "當時地球已掌握同等無線電技術 ",
+                techAlready2: " 年",
+                techBeyondBar: "無線電技術水準需求超越現代，無法估計等待時間"
+            },
+            en: {
+                title: "Exoplanet Signal Radar",
+                premise: "Assumption: If we received an alien signal right now (2026)",
+                ly: "LY",
+                name: "Planet Name",
+                host: "Host Star",
+                dist: "Distance",
+                signal: "Signal Sent Year",
+                power: "Req. Power (W)",
+                habitable: " (Habitable)",
+                techEval1: "The required transmission power is ",
+                techEval2: " W (J/s), equivalent to Earth's technology in AD ",
+                techEval3: " in radio technology.",
+                techBeyond: "This power requirement exceeds current Earth capability, belonging to Type I civilization or above.",
+                timelineTitle: "Earth when this signal was sent...",
+                markerSignal: "Signal Sent",
+                markerTech: "Required Tech",
+                techWait1: "Years until Earth develops equivalent radio tech (AD ",
+                techWait2: "): ",
+                techWait3: " years",
+                techAlready: "Earth already had this radio tech for ",
+                techAlready2: " years",
+                techBeyondBar: "Radio tech required is beyond current era, cannot estimate wait time"
+            },
+            ja: {
+                title: "系外惑星電波信号レーダー",
+                premise: "前提：もし今（2026年）、地球外からの信号を受信したら",
+                ly: "光年",
+                name: "惑星名",
+                host: "主星",
+                dist: "距離",
+                signal: "信号発信年",
+                power: "必要電力 (W)",
+                habitable: " (居住可能)",
+                techEval1: "必要な送信電力は ",
+                techEval2: " W (ジュール/秒) であり、これは地球の西暦 ",
+                techEval3: " 年の無線電波技術水準に相当します。",
+                techBeyond: "この電力需要は現在の地球の技術水準を超えており、タイプI文明以上の領域に属します。",
+                timelineTitle: "この信号が発信された時の地球...",
+                markerSignal: "信号発信",
+                markerTech: "必要技術水準",
+                techWait1: "人類が同等の無線技術を開発するまで (西暦 ",
+                techWait2: " 年) あと ",
+                techWait3: " 年",
+                techAlready: "人類はこの無線技術を既に ",
+                techAlready2: " 年間保有していました",
+                techBeyondBar: "現代を超越した無線技術のため、待機時間は見積もり不可"
+            }
+        };
+
+        let currentLang = 'zh';
+        
+        const earthHistory = [
+            { year: 1895, power: 100 },
+            { year: 1920, power: 100000 },
+            { year: 1950, power: 1e8 },
+            { year: 1974, power: 2e13 },
+            { year: 2026, power: 1e14 }
+        ];
+
+        const nasaUrls = [
+            { match: /Proxima Cen/i, url: "https://exoplanets.nasa.gov/exoplanet/proxima-centauri-b/" },
+            { match: /Ross 128/i, url: "https://exoplanets.nasa.gov/exoplanet/ross-128-b/" },
+            { match: /GJ 581 c|Gliese 581 c/i, url: "https://exoplanets.nasa.gov/exoplanet/gliese-581-c/" },
+            { match: /TRAPPIST-1/i, url: "https://exoplanets.nasa.gov/star-system/trappist-1/" },
+            { match: /LHS 1140 b/i, url: "https://exoplanets.nasa.gov/exoplanet/lhs-1140-b/" },
+            { match: /Kepler-186 f/i, url: "https://exoplanets.nasa.gov/exoplanet/kepler-186-f/" },
+            { match: /Kepler-452 b/i, url: "https://exoplanets.nasa.gov/exoplanet/kepler-452-b/" }
+        ];
+
+        const earthHistoryTimeline = [
+            { year: 2021, text: { zh: "【約 2021 年】詹姆斯·韋伯太空望遠鏡升空；生成式 AI 爆發；人類著手重返月球。", en: "[~2021 AD] JWST launches; Generative AI explodes; humans prepare to return to the Moon.", ja: "【約 2021 年】JWST打ち上げ。生成AIが爆発的に普及し、人類は月への帰還を計画。" } },
+            { year: 2010, text: { zh: "【約 2010 年】智慧型手機普及；CRISPR 基因編輯技術獲重大突破。", en: "[~2010 AD] Smartphones popularize; CRISPR genetic editing breakthrough.", ja: "【約 2010 年】スマートフォンの普及。CRISPRゲノム編集技術が躍進。" } },
+            { year: 1990, text: { zh: "【約 1990 年】全球資訊網 (WWW) 誕生；人類基因組計畫正式啟動。", en: "[~1990 AD] World Wide Web created; Human Genome Project begins.", ja: "【約 1990 年】WWW誕生。ヒトゲノム計画が正式に開始される。" } },
+            { year: 1970, text: { zh: "【約 1970 年】阿波羅計畫登月成功；航海家號探測器發射，探索外太陽系。", en: "[~1970 AD] Apollo moon landings; Voyager probes launched to outer solar system.", ja: "【約 1970 年】アポロ計画で月面着陸。ボイジャー探査機が外太陽系へ打ち上げられる。" } },
+            { year: 1950, text: { zh: "【約 1950 年】DNA 雙股螺旋結構被發現；美蘇冷戰與太空競賽揭幕。", en: "[~1950 AD] DNA double helix discovered; Space Race begins.", ja: "【約 1950 年】DNAの二重らせん構造が発見され、宇宙開発競争が幕を開ける。" } },
+            { year: 1930, text: { zh: "【約 1930 年】量子力學與相對論發展成熟；人類建立早期電波望遠鏡。", en: "[~1930 AD] Quantum mechanics matures; early radio telescopes built.", ja: "【約 1930 年】量子力学が成熟。初期の電波望遠鏡が建設される。" } },
+            { year: 1900, text: { zh: "【約 1900 年】萊特兄弟發明飛機；愛因斯坦提出狹義相對論，現代物理學起飛。", en: "[~1900 AD] Wright brothers invent airplane; Einstein proposes Special Relativity.", ja: "【約 1900 年】ライト兄弟が飛行機を発明。アインシュタインが特殊相対性理論を提唱。" } },
+            { year: 1800, text: { zh: "【約 1800 年】第一次工業革命如火如荼；蒸汽機與鐵路徹底改變人類社會。", en: "[~1800 AD] Industrial Revolution in full swing; steam engines transform society.", ja: "【約 1800 年】産業革命が進行中。蒸気機関と鉄道が人間社会を劇的に変える。" } },
+            { year: 1600, text: { zh: "【約 1600 年】科學革命展開；伽利略首次使用望遠鏡觀測星空，牛頓力學逐漸成形。", en: "[~1600 AD] Scientific Revolution; Galileo uses telescope; Newtonian mechanics forms.", ja: "【約 1600 年】科学革命。ガリレオが望遠鏡で星空を観測し、ニュートン力学が形成。" } },
+            { year: 1400, text: { zh: "【約 1400 年】歐洲文藝復興；古騰堡發明活字印刷術；大航海時代即將揭幕。", en: "[~1400 AD] Renaissance; Gutenberg printing press; Age of Discovery dawns.", ja: "【約 1400 年】ルネサンス。グーテンベルクが活版印刷を発明。大航海時代の幕開け。" } },
+            { year: 1000, text: { zh: "【約 1000 年】中世紀盛期；中國宋朝發明火藥與指南針，文明穩步發展。", en: "[~1000 AD] High Middle Ages; Song Dynasty invents gunpowder and compass.", ja: "【約 1000 年】中世盛期。中国の宋朝が火薬と羅針盤を発明。" } },
+            { year: 500, text: { zh: "【約 500 年】歐洲進入中世紀；中國隋唐帝國崛起；馬雅文明進入繁盛期。", en: "[~500 AD] Europe enters Middle Ages; Tang Dynasty rises; Maya civilization flourishes.", ja: "【約 500 年】ヨーロッパは中世へ。中国で隋唐帝国が台頭し、マヤ文明が繁栄。" } },
+            { year: 0, text: { zh: "【西元元年】古羅馬帝國進入全盛時期；漢朝統治中國；人類以肉眼觀測行星的軌跡。", en: "[0 AD] Roman Empire peaks; Han Dynasty rules China; naked-eye astronomy.", ja: "【西暦 1 年】ローマ帝国全盛期。中国は漢朝。人類は肉眼で惑星を観測。" } },
+            { year: -500, text: { zh: "【約西元前 500 年】軸心時代：古希臘哲學、佛教與儒家思想誕生，人類思想大躍進。", en: "[~500 BC] Axial Age: Greek philosophy, Buddhism, and Confucianism emerge.", ja: "【約 紀元前 500 年】枢軸時代。古代ギリシャ哲学、仏教、儒教が誕生。" } },
+            { year: -3000, text: { zh: "【約西元前 3000 年】人類進入青銅時代；古埃及、美索不達米亞發展出早期文字與曆法。", en: "[~3000 BC] Bronze Age; Egypt and Mesopotamia develop writing and calendars.", ja: "【約 紀元前 3000 年】青銅器時代。古代エジプトやメソポタミアで文字と暦が発達。" } },
+            { year: -10000, text: { zh: "【約西元前 1萬年】最後一次冰河期結束，農業革命爆發，人類開始建立最早的村落。", en: "[~10,000 BC] Last Ice Age ends, Agricultural Revolution begins, early villages form.", ja: "【約 紀元前 1 万年】最後の氷河期が終了。農業革命が起こり、初期の村落が形成される。" } },
+            { year: -200000, text: { zh: "【約 20萬年前】智人 (Homo sapiens) 在非洲崛起，並開始逐漸向全球遷徙。", en: "[~200,000 BC] Homo sapiens emerge in Africa and begin global migration.", ja: "【約 20 万年前】ホモ・サピエンスがアフリカで誕生し、次第に世界中へ移住。" } },
+            { year: -2000000, text: { zh: "【約 200萬年前】早期人科動物 (如巧人) 開始使用簡單打製石器。", en: "[~2 Million BC] Early hominins use simple stone tools.", ja: "【約 200 万年前】初期の人類が単純な石器を使い始める。" } },
+            { year: -65000000, text: { zh: "【約 6500萬年前】白堊紀-古近紀滅絕事件，恐龍滅絕，哺乳動物開始繁衍並統治地球。", en: "[~65 Million BC] Dinosaur extinction; mammals begin to dominate Earth.", ja: "【約 6500 万年前】恐竜が絶滅し、哺乳類が地球を支配し始める。" } },
+            { year: -500000000, text: { zh: "【約 5億年前】寒武紀大爆發，海洋中突然湧現大量複雜的多細胞生命。", en: "[~500 Million BC] Cambrian explosion; complex multicellular life bursts into the oceans.", ja: "【約 5 億年前】カンブリア爆発。複雑な多細胞生物が海中に突如として出現。" } },
+            { year: -3500000000, text: { zh: "【約 35億年前】地球上出現了最早的單細胞生命形式，生命開始在原始海洋中孕育。", en: "[~3.5 Billion BC] First single-celled life forms appear in primordial Earth oceans.", ja: "【約 35 億年前】地球上に最初の単細胞生物が出現し、原始の海で命が育まれる。" } }
+        ];
+
+        function getTimelineEvent(signalYear) {
+            for (let i = 0; i < earthHistoryTimeline.length; i++) {
+                if (signalYear >= earthHistoryTimeline[i].year) {
+                    return earthHistoryTimeline[i];
+                }
+            }
+            return earthHistoryTimeline[earthHistoryTimeline.length - 1];
+        }
+
+        let typewriterTimeout;
+        function typeWriter(element, text, speed = 40) {
+            element.innerHTML = '';
+            clearTimeout(typewriterTimeout);
+            let i = 0;
+            function type() {
+                if (i < text.length) {
+                    element.innerHTML += text.charAt(i);
+                    i++;
+                    typewriterTimeout = setTimeout(type, speed);
+                }
+            }
+            type();
+        }
+
+        function estimateYear(reqPower) {
+            if (reqPower <= earthHistory[0].power) return earthHistory[0].year;
+            if (reqPower >= earthHistory[earthHistory.length - 1].power) return "BEYOND";
+            
+            for (let i = 0; i < earthHistory.length - 1; i++) {
+                const p1 = earthHistory[i];
+                const p2 = earthHistory[i + 1];
+                if (reqPower >= p1.power && reqPower <= p2.power) {
+                    const logReq = Math.log10(reqPower);
+                    const logP1 = Math.log10(p1.power);
+                    const logP2 = Math.log10(p2.power);
+                    const ratio = (logReq - logP1) / (logP2 - logP1);
+                    return Math.round(p1.year + ratio * (p2.year - p1.year));
+                }
+            }
+            return 2026;
+        }
+
+        // Wait for data.js to load and populate EXOPLANETS_DATA
+        const checkData = setInterval(() => {
+            if(window.EXOPLANETS_DATA) {
+                clearInterval(checkData);
+                document.getElementById('loading').style.opacity = '0';
+                setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+                initApp();
+            }
+        }, 100);
+
+        function initApp() {
+            const data = window.EXOPLANETS_DATA || [];
+            
+            // DOM Elements
+            const titleText = document.getElementById('title-text');
+            const premiseText = document.getElementById('premise-text');
+            const langSelect = document.getElementById('lang-select');
+            const planetList = document.getElementById('planet-list');
+            const infoPanel = document.getElementById('info-panel');
+            
+            const labelName = document.getElementById('label-name');
+            const labelHost = document.getElementById('label-host');
+            const labelDist = document.getElementById('label-dist');
+            const labelSignal = document.getElementById('label-signal');
+            const labelPower = document.getElementById('label-power');
+            
+            const valName = document.getElementById('val-name');
+            const valHost = document.getElementById('val-host');
+            const valDist = document.getElementById('val-dist');
+            const valSignal = document.getElementById('val-signal');
+            const valPower = document.getElementById('val-power');
+            const evalText = document.getElementById('eval-text');
+            const nasaLink = document.getElementById('nasa-link');
+            const timelinePanel = document.getElementById('timeline-panel');
+            const timelineTitle = document.getElementById('timeline-title');
+            const timelineContent = document.getElementById('timeline-content');
+
+            // Chart.js Setup
+            const ctx = document.getElementById('power-chart').getContext('2d');
+            const chartData = earthHistory.map(d => ({ x: d.year, y: d.power }));
+            
+            const powerChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Earth Tech (W)',
+                            data: chartData,
+                            borderColor: 'rgba(56, 189, 248, 0.8)',
+                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                            fill: true,
+                            tension: 0.1,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#38bdf8'
+                        },
+                        {
+                            label: 'Target Power',
+                            data: [],
+                            borderColor: '#22c55e',
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            borderWidth: 2,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            min: 1890,
+                            max: 2030,
+                            title: { display: false },
+                            ticks: { 
+                                color: '#94a3b8', 
+                                callback: function(val) { return Math.floor(val); },
+                                maxTicksLimit: 5
+                            },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        },
+                        y: {
+                            type: 'logarithmic',
+                            title: { display: false },
+                            ticks: { 
+                                color: '#94a3b8', 
+                                callback: function(val) { 
+                                    return "10^" + Math.round(Math.log10(val)); 
+                                },
+                                maxTicksLimit: 6
+                            },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toExponential(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Three.js Setup
+            const scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x030816, 0.0015);
+            
+            const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 3000);
+            camera.position.set(0, 80, 200);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setClearColor(0x030816, 1);
+            document.body.appendChild(renderer.domElement);
+
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.08;
+            controls.maxDistance = 1500;
+            controls.minDistance = 5;
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+            const pointLight = new THREE.PointLight(0xffffff, 1.5, 0);
+            scene.add(pointLight);
+
+            // Add stars background (Particle System)
+            const starGeo = new THREE.BufferGeometry();
+            const starMaterial = new THREE.PointsMaterial({color: 0xffffff, size: 0.8, transparent: true, opacity: 0.6});
+            const starVertices = [];
+            for(let i=0; i<5000; i++) {
+                const x = (Math.random() - 0.5) * 3000;
+                const y = (Math.random() - 0.5) * 3000;
+                const z = (Math.random() - 0.5) * 3000;
+                starVertices.push(x, y, z);
+            }
+            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+            const stars = new THREE.Points(starGeo, starMaterial);
+            scene.add(stars);
+
+            // Earth
+            const earthGroup = new THREE.Group();
+            scene.add(earthGroup);
+
+            const earthGeo = new THREE.SphereGeometry(3, 32, 32);
+            const earthMat = new THREE.MeshPhongMaterial({ 
+                color: 0x1177ff, 
+                emissive: 0x0033aa,
+                shininess: 80
+            });
+            const earth = new THREE.Mesh(earthGeo, earthMat);
+            earthGroup.add(earth);
+            
+            // Earth glow
+            const glowGeo = new THREE.SphereGeometry(3.6, 32, 32);
+            const glowMat = new THREE.MeshBasicMaterial({ color: 0x44aaff, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending });
+            const earthGlow = new THREE.Mesh(glowGeo, glowMat);
+            earthGroup.add(earthGlow);
+
+            // Planets mapping
+            const planetMeshes = [];
+            const planetColor = new THREE.Color();
+            
+            data.forEach((p, index) => {
+                // 判斷是否為宜居行星
+                p.isHabitable = /Proxima Cen|TRAPPIST-1|LHS 1140|Kepler-186 f/i.test(p.pl_name) || /Proxima Cen/i.test(p.hostname);
+                
+                // 設定 NASA URL
+                const matchObj = nasaUrls.find(n => n.match.test(p.pl_name) || n.match.test(p.hostname));
+                if (matchObj) {
+                    p.nasaUrl = matchObj.url;
+                }
+
+                // 對數映射距離: 確保能裝下 4~1400 甚至更遠的距離 (light year)
+                const logDist = Math.log10(Math.max(p.distance_ly, 1));
+                const r = logDist * 90; // 將對數數值放大至 3D 空間半徑
+
+                // Random spherical coordinates
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos((Math.random() * 2) - 1);
+                
+                const x = r * Math.sin(phi) * Math.cos(theta);
+                const y = r * Math.sin(phi) * Math.sin(theta);
+                const z = r * Math.cos(phi);
+
+                // 顏色對應距離與宜居狀態
+                if (p.isHabitable) {
+                    planetColor.setHex(0x22ff44); // 綠色
+                } else {
+                    const hue = Math.max(0, 0.6 - (logDist / 5));
+                    planetColor.setHSL(hue, 0.8, 0.6);
+                }
+
+                // Planet Group
+                const pGroup = new THREE.Group();
+                pGroup.position.set(x, y, z);
+                
+                // Planet Sphere
+                const pGeo = new THREE.SphereGeometry(p.isHabitable ? 1.6 : 1.2, 16, 16);
+                const pMat = new THREE.MeshPhongMaterial({ 
+                    color: planetColor.getHex(),
+                    emissive: planetColor.getHex(),
+                    emissiveIntensity: 0.5
+                });
+                const pMesh = new THREE.Mesh(pGeo, pMat);
+                pMesh.userData = { ...p, index: index, originalColor: planetColor.getHex() };
+                pGroup.add(pMesh);
+
+                // Planet Glow
+                const pGlowGeo = new THREE.SphereGeometry(p.isHabitable ? 2.5 : 1.8, 16, 16);
+                const pGlowMat = new THREE.MeshBasicMaterial({ 
+                    color: planetColor.getHex(), 
+                    transparent: true, 
+                    opacity: p.isHabitable ? 0.5 : 0.2, 
+                    blending: THREE.AdditiveBlending 
+                });
+                pGroup.add(new THREE.Mesh(pGlowGeo, pGlowMat));
+                
+                // 若為宜居，增加閃爍特效的參考
+                if (p.isHabitable) {
+                    pGroup.userData.isHabitable = true;
+                    pGroup.userData.glowMesh = pGroup.children[1];
+                }
+
+                scene.add(pGroup);
+                planetMeshes.push({ group: pGroup, mesh: pMesh });
+            });
+
+            // Connection Line and Signal Animation
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.6, linewidth: 2 });
+            let currentLine = null;
+            let signalWave = null;
+
+            // Raycaster for click
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+
+            // Format scientific notation
+            function formatPower(power) {
+                return power.toExponential(2).replace('e+', ' × 10^');
+            }
+
+            // Format year with AD/BC
+            function formatYear(year, lang) {
+                if (year < 0) {
+                    if (lang === 'en') return `BC ${Math.abs(year)}`;
+                    if (lang === 'ja') return `紀元前 ${Math.abs(year)} 年`;
+                    return `西元前 ${Math.abs(year)} 年`;
+                } else {
+                    if (lang === 'en') return `AD ${year}`;
+                    if (lang === 'ja') return `西暦 ${year} 年`;
+                    return `西元 ${year} 年`;
+                }
+            }
+
+            // Update UI Text
+            function updateUI() {
+                const txt = i18n[currentLang];
+                titleText.innerText = txt.title;
+                premiseText.innerText = txt.premise;
+                labelName.innerText = txt.name;
+                labelHost.innerText = txt.host;
+                labelDist.innerText = txt.dist;
+                labelSignal.innerText = txt.signal;
+                labelPower.innerText = txt.power;
+                
+                // Rebuild List
+                planetList.innerHTML = '';
+                data.forEach((p, index) => {
+                    const item = document.createElement('div');
+                    item.className = `planet-item ${index === activeIndex ? 'active' : ''}`;
+                    item.id = `item-${index}`;
+                    
+                    const nameDiv = document.createElement('div');
+                    nameDiv.className = 'planet-name';
+                    nameDiv.innerHTML = p.pl_name + (p.isHabitable ? `<span class="habitable-badge">${txt.habitable}</span>` : "");
+                    
+                    const distDiv = document.createElement('div');
+                    distDiv.className = 'planet-dist';
+                    distDiv.innerText = `${p.distance_ly.toFixed(2)} ${txt.ly}`;
+                    
+                    item.appendChild(nameDiv);
+                    item.appendChild(distDiv);
+                    
+                    item.addEventListener('click', () => selectPlanet(index));
+                    planetList.appendChild(item);
+                });
+            }
+
+            let activeIndex = -1;
+
+            function selectPlanet(index) {
+                if(activeIndex !== -1) {
+                    const prevItem = document.getElementById(`item-${activeIndex}`);
+                    if(prevItem) prevItem.classList.remove('active');
+                    planetMeshes[activeIndex].group.scale.set(1, 1, 1);
+                    planetMeshes[activeIndex].mesh.material.emissiveIntensity = 0.5;
+                }
+                
+                activeIndex = index;
+                const currItem = document.getElementById(`item-${index}`);
+                if(currItem) currItem.classList.add('active');
+                
+                const p = data[index];
+                const pObj = planetMeshes[index];
+                const txt = i18n[currentLang];
+
+                // Update Info Panel
+                infoPanel.style.display = 'block';
+                valName.innerHTML = p.pl_name + (p.isHabitable ? `<span class="habitable-badge">${txt.habitable}</span>` : "");
+                valHost.innerText = p.hostname;
+                valDist.innerText = `${p.distance_ly.toFixed(2)} ${txt.ly}`;
+                valSignal.innerText = formatYear(Math.floor(p.signal_year), currentLang);
+                valPower.innerText = formatPower(p.required_power_w) + (currentLang === 'en' ? ' W (J/s)' : (currentLang === 'ja' ? ' W (ジュール/秒)' : ' 瓦特 (焦耳/秒)'));
+
+                // Update Chart Target Line
+                const targetData = [
+                    { x: 1890, y: p.required_power_w },
+                    { x: 2030, y: p.required_power_w }
+                ];
+                powerChart.data.datasets[1].data = targetData;
+                powerChart.update();
+
+                // Evaluate Text
+                const eqYear = estimateYear(p.required_power_w);
+                if (eqYear === "BEYOND") {
+                    evalText.innerText = txt.techBeyond;
+                    evalText.style.color = "#ff4444";
+                } else {
+                    evalText.innerText = txt.techEval1 + formatPower(p.required_power_w) + txt.techEval2 + eqYear + txt.techEval3;
+                    evalText.style.color = "#38bdf8";
+                }
+
+                // Timeline Event
+                timelinePanel.style.display = 'block';
+                timelineTitle.innerText = txt.timelineTitle;
+                const closestEvent = getTimelineEvent(p.signal_year);
+                typeWriter(timelineContent, closestEvent.text[currentLang] || closestEvent.text['zh']);
+
+                // Timeline Progress Bar logic
+                const timelineBarContainer = document.getElementById('timeline-bar-container');
+                const innerBar = document.getElementById('timeline-bar-inner');
+                const opponentLabelTop = document.getElementById('opponent-label-top');
+                const labelMarkerTech = document.getElementById('label-marker-tech');
+                const timelineCountdown = document.getElementById('timeline-countdown');
+                const markerTech = document.getElementById('marker-tech');
+
+                timelineBarContainer.style.display = 'block';
+                opponentLabelTop.innerText = txt.markerTech;
+
+                // Render Earth Milestones once if not exists
+                if (innerBar.querySelectorAll('.earth-marker').length === 0) {
+                    const radioMilestones = [
+                        { year: 1895, name: { zh: "馬可尼實驗", en: "Marconi Exp.", ja: "マルコーニ実験" } },
+                        { year: 1920, name: { zh: "早期廣播", en: "Early Radio", ja: "初期ラジオ" } },
+                        { year: 1950, name: { zh: "早期雷達", en: "Early Radar", ja: "初期レーダー" } },
+                        { year: 1974, name: { zh: "阿雷西博", en: "Arecibo", ja: "アレシボ" } },
+                        { year: 2026, name: { zh: "深空網路", en: "DSN", ja: "深宇宙ネットワーク" } }
+                    ];
+                    radioMilestones.forEach(m => {
+                        const pos = ((m.year - 1800) / 300) * 100;
+                        const marker = document.createElement('div');
+                        marker.className = 'earth-marker';
+                        marker.style.left = `${pos}%`;
+                        const yearLabel = document.createElement('div');
+                        yearLabel.className = 'earth-marker-year';
+                        yearLabel.innerText = m.year;
+                        marker.appendChild(yearLabel);
+                        const nameLabel = document.createElement('div');
+                        nameLabel.className = 'earth-marker-name';
+                        nameLabel.innerText = m.name[currentLang];
+                        marker.appendChild(nameLabel);
+                        innerBar.appendChild(marker);
+                    });
+                } else {
+                    // Update language for earth markers
+                    const radioNames = [
+                        { zh: "馬可尼實驗", en: "Marconi Exp.", ja: "マルコーニ実験" },
+                        { zh: "早期廣播", en: "Early Radio", ja: "初期ラジオ" },
+                        { zh: "早期雷達", en: "Early Radar", ja: "初期レーダー" },
+                        { zh: "阿雷西博", en: "Arecibo", ja: "アレシボ" },
+                        { zh: "深空網路", en: "DSN", ja: "深宇宙ネットワーク" }
+                    ];
+                    const nameLabels = innerBar.querySelectorAll('.earth-marker-name');
+                    nameLabels.forEach((lbl, idx) => {
+                        lbl.innerText = radioNames[idx][currentLang];
+                    });
+                }
+
+                // Reset animation
+                innerBar.style.transition = 'none';
+                innerBar.style.transform = `translateX(-50%)`; // default center
+                
+                setTimeout(() => {
+                    innerBar.style.transition = 'transform 2s cubic-bezier(0.22, 1, 0.36, 1)';
+                    
+                    if (eqYear === "BEYOND") {
+                        timelineCountdown.innerText = txt.techBeyondBar;
+                        const posPercent = ((2080 - 1800) / 300) * 100; // Cap at 2080 visually
+                        markerTech.style.left = `${posPercent}%`;
+                        labelMarkerTech.innerText = currentLang === 'zh' ? "未來" : (currentLang === 'ja' ? "未来" : "Future");
+                        innerBar.style.transform = `translateX(calc(-${posPercent}%))`;
+                    } else {
+                        const diffYears = Math.floor(eqYear - p.signal_year);
+                        if (diffYears > 0) {
+                            timelineCountdown.innerText = txt.techWait1 + eqYear + txt.techWait2 + diffYears + txt.techWait3;
+                        } else {
+                            timelineCountdown.innerText = txt.techAlready + Math.abs(diffYears) + txt.techAlready2;
+                        }
+                        const posPercent = ((eqYear - 1800) / 300) * 100;
+                        markerTech.style.left = `${posPercent}%`;
+                        labelMarkerTech.innerText = `${eqYear} 年`;
+                        innerBar.style.transform = `translateX(calc(-${posPercent}%))`;
+                    }
+                }, 50);
+
+                // NASA Link
+                if (p.nasaUrl) {
+                    nasaLink.href = p.nasaUrl;
+                    nasaLink.innerText = `🔗 深入探索 ${p.pl_name} (NASA 官方資料)`;
+                    nasaLink.style.display = 'block';
+                } else {
+                    nasaLink.style.display = 'none';
+                }
+
+                // Highlight planet
+                pObj.group.scale.set(1.8, 1.8, 1.8);
+                pObj.mesh.material.emissiveIntensity = 1.0;
+
+                // Draw line from Earth to Planet
+                if(currentLine) scene.remove(currentLine);
+                if(signalWave) scene.remove(signalWave);
+
+                const earthPos = new THREE.Vector3(0,0,0);
+                const targetPos = pObj.group.position.clone();
+                
+                const points = [earthPos, targetPos];
+                const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+                currentLine = new THREE.Line(lineGeo, lineMaterial);
+                scene.add(currentLine);
+
+                // Animate Signal Wave
+                const waveGeo = new THREE.SphereGeometry(1.5, 16, 16);
+                const waveMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.8 });
+                signalWave = new THREE.Mesh(waveGeo, waveMat);
+                signalWave.position.copy(earthPos);
+                scene.add(signalWave);
+
+                new TWEEN.Tween(signalWave.position)
+                    .to({ x: targetPos.x, y: targetPos.y, z: targetPos.z }, 2000)
+                    .easing(TWEEN.Easing.Cubic.Out)
+                    .onComplete(() => {
+                        if(signalWave) scene.remove(signalWave);
+                    })
+                    .start();
+
+                // Animate Camera Focus
+                const camOffset = targetPos.clone().normalize().multiplyScalar(40);
+                const newCamPos = targetPos.clone().add(camOffset);
+                newCamPos.y += 15;
+
+                new TWEEN.Tween(camera.position)
+                    .to({ x: newCamPos.x, y: newCamPos.y, z: newCamPos.z }, 1500)
+                    .easing(TWEEN.Easing.Quadratic.Out)
+                    .start();
+
+                new TWEEN.Tween(controls.target)
+                    .to({ x: targetPos.x, y: targetPos.y, z: targetPos.z }, 1500)
+                    .easing(TWEEN.Easing.Quadratic.Out)
+                    .start();
+                    
+                // Scroll list to item
+                if(currItem) currItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            // Listeners
+            langSelect.addEventListener('change', (e) => {
+                currentLang = e.target.value;
+                updateUI();
+                if(activeIndex !== -1) selectPlanet(activeIndex); // Refresh info panel texts
+            });
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            // 3D Click Interaction
+            window.addEventListener('click', (event) => {
+                // Ignore UI clicks (panel width ~ 380px on left and right)
+                if(event.clientX < 400 || event.clientX > window.innerWidth - 400) return;
+
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const targetMeshes = planetMeshes.map(pm => pm.mesh);
+                const intersects = raycaster.intersectObjects(targetMeshes);
+
+                if (intersects.length > 0) {
+                    const obj = intersects[0].object;
+                    selectPlanet(obj.userData.index);
+                }
+            });
+
+            // Initialize UI
+            updateUI();
+
+            // Animation Loop
+            function animate(time) {
+                requestAnimationFrame(animate);
+                TWEEN.update(time);
+                controls.update();
+                
+                earthGroup.rotation.y += 0.002;
+                earthGlow.scale.setScalar(1 + Math.sin(time * 0.002) * 0.05); // Pulsing glow
+
+                // 宜居行星閃爍效果
+                planetMeshes.forEach(pm => {
+                    if (pm.group.userData.isHabitable) {
+                        pm.group.userData.glowMesh.scale.setScalar(1 + Math.sin(time * 0.005 + pm.mesh.userData.index) * 0.1);
+                    }
+                });
+                
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+    </script>
+</body>
+</html>
