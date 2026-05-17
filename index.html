@@ -30,6 +30,8 @@
             display: flex;
             flex-direction: column;
             pointer-events: none;
+            overflow-y: auto;
+            padding-right: 4px;
         }
         .glass-panel {
             background: rgba(16, 24, 48, 0.4);
@@ -43,6 +45,13 @@
             margin-bottom: 20px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
+        .panel-title {
+            margin: 0 0 14px 0;
+            font-size: 1rem;
+            color: #fff;
+            letter-spacing: 0;
+            font-weight: 700;
+        }
         h1 { margin: 0 0 16px 0; font-size: 1.3rem; font-weight: 600; letter-spacing: 1px; color: #fff; }
         select {
             width: 100%; padding: 10px; background: rgba(0, 0, 0, 0.3); color: white;
@@ -50,6 +59,23 @@
             font-size: 0.95rem; cursor: pointer;
         }
         select option { background: #1a202c; }
+        .nav-link {
+            display: block;
+            margin-top: 12px;
+            padding: 10px 12px;
+            text-align: center;
+            color: #bae6fd;
+            text-decoration: none;
+            border: 1px solid rgba(125, 211, 252, 0.35);
+            border-radius: 8px;
+            background: rgba(14, 116, 144, 0.18);
+            font-size: 0.86rem;
+            font-weight: 700;
+        }
+        .nav-link:hover {
+            background: rgba(14, 116, 144, 0.34);
+            color: #ffffff;
+        }
         
         .planet-list {
             flex-grow: 1; overflow-y: auto; overflow-x: hidden;
@@ -74,10 +100,124 @@
         .planet-dist { font-size: 0.85rem; color: #94a3b8; margin-top: 6px; }
         .habitable-badge { color: #22c55e; font-size: 0.8rem; margin-left: 6px; font-weight: bold; }
         
-        #info-panel { display: none; }
+        #info-panel { display: none; order: -1; }
         .info-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.95rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;}
         .info-label { color: #94a3b8; }
         .info-value { font-weight: 600; text-align: right; color: #e2e8f0; }
+        .kardashev-badge {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 6px;
+            padding: 2px 7px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #020617;
+            vertical-align: middle;
+        }
+        .evidence-panel h2 {
+            margin: 0 0 12px 0;
+            font-size: 1rem;
+            color: #fff;
+            letter-spacing: 0;
+        }
+        .evidence-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .metric-box {
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 10px;
+            background: rgba(2, 6, 23, 0.28);
+            min-width: 0;
+        }
+        .metric-value {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #f8fafc;
+            white-space: nowrap;
+        }
+        .metric-label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+        .control-row { margin: 12px 0; }
+        .control-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 0.78rem;
+            color: #cbd5e1;
+            margin-bottom: 7px;
+        }
+        .control-head strong {
+            color: #f8fafc;
+            font-weight: 700;
+            text-align: right;
+            white-space: nowrap;
+        }
+        input[type="range"] {
+            width: 100%;
+            accent-color: #38bdf8;
+        }
+        .funnel {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .funnel-row {
+            display: grid;
+            grid-template-columns: 92px 1fr 48px;
+            gap: 8px;
+            align-items: center;
+            font-size: 0.76rem;
+            color: #cbd5e1;
+        }
+        .funnel-track {
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.18);
+            overflow: hidden;
+        }
+        .funnel-fill {
+            height: 100%;
+            width: 0;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #38bdf8, #22c55e);
+            transition: width 0.3s ease;
+        }
+        .legend-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 10px;
+            margin-top: 13px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 0.76rem;
+            color: #cbd5e1;
+            min-width: 0;
+        }
+        .legend-swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex: 0 0 auto;
+            box-shadow: 0 0 8px currentColor;
+        }
+        .bias-note {
+            margin-top: 12px;
+            color: #fbbf24;
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
         
         .nasa-btn {
             display: block;
@@ -241,6 +381,7 @@
                 <option value="en">English (US)</option>
                 <option value="ja">日本語</option>
             </select>
+            <a class="nav-link" id="lab-link" href="selection-bias-lab.html">Open Selection Bias Lab</a>
         </div>
         
         <div class="glass-panel planet-list" id="planet-list">
@@ -249,7 +390,53 @@
     </div>
 
     <div id="right-ui-layer">
+        <div class="glass-panel evidence-panel" id="evidence-panel">
+            <h2 id="evidence-title">Selection Bias Evidence</h2>
+            <div class="evidence-grid">
+                <div class="metric-box">
+                    <div class="metric-value" id="metric-detectable">-</div>
+                    <div class="metric-label" id="metric-detectable-label">可偵測候選</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-value" id="metric-radius">-</div>
+                    <div class="metric-label" id="metric-radius-label">偵測半徑</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-value" id="metric-mundane">-</div>
+                    <div class="metric-label" id="metric-mundane-label">平庸文明可見</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-value" id="metric-selected-class">-</div>
+                    <div class="metric-label" id="metric-selected-label">目前目標門檻</div>
+                </div>
+            </div>
+
+            <div class="control-row">
+                <div class="control-head"><span id="label-transmitter">假設發射功率</span><strong id="value-transmitter">10^14 W</strong></div>
+                <input id="transmitter-slider" type="range" min="12" max="26" step="0.25" value="14">
+            </div>
+            <div class="control-row">
+                <div class="control-head"><span id="label-sensitivity">接收靈敏度增益</span><strong id="value-sensitivity">1x</strong></div>
+                <input id="sensitivity-slider" type="range" min="0" max="6" step="0.25" value="0">
+            </div>
+            <div class="control-row">
+                <div class="control-head"><span id="label-lead">平庸文明領先年數</span><strong id="value-lead">100 年</strong></div>
+                <input id="lead-slider" type="range" min="25" max="1000" step="25" value="100">
+            </div>
+
+            <div class="funnel" aria-label="SETI threshold funnel">
+                <div class="funnel-row"><span id="funnel-total-label">全部目標</span><div class="funnel-track"><div class="funnel-fill" id="funnel-total"></div></div><strong id="funnel-total-value">-</strong></div>
+                <div class="funnel-row"><span id="funnel-time-label">時間可行</span><div class="funnel-track"><div class="funnel-fill" id="funnel-time"></div></div><strong id="funnel-time-value">-</strong></div>
+                <div class="funnel-row"><span id="funnel-energy-label">能量可達</span><div class="funnel-track"><div class="funnel-fill" id="funnel-energy"></div></div><strong id="funnel-energy-value">-</strong></div>
+                <div class="funnel-row"><span id="funnel-both-label">同時通過</span><div class="funnel-track"><div class="funnel-fill" id="funnel-both"></div></div><strong id="funnel-both-value">-</strong></div>
+            </div>
+
+            <div class="legend-list" id="kardashev-legend"></div>
+            <div class="bias-note" id="bias-note"></div>
+        </div>
+
         <div class="glass-panel" id="info-panel">
+            <h2 class="panel-title" id="target-panel-title">Selected Target Diagnostics</h2>
             <div class="info-row"><span class="info-label" id="label-name">名稱</span><span class="info-value" id="val-name">-</span></div>
             <div class="info-row"><span class="info-label" id="label-host">恆星</span><span class="info-value" id="val-host">-</span></div>
             <div class="info-row"><span class="info-label" id="label-dist">距離</span><span class="info-value" id="val-dist">-</span></div>
@@ -320,7 +507,25 @@
                 techWait3: " 年",
                 techAlready: "當時地球已掌握同等無線電技術 ",
                 techAlready2: " 年",
-                techBeyondBar: "無線電技術水準需求超越現代，無法估計等待時間"
+                techBeyondBar: "無線電技術水準需求超越現代，無法估計等待時間",
+                evidenceTitle: "篩選假說證據",
+                detectableMetric: "可偵測候選",
+                radiusMetric: "偵測半徑",
+                mundaneMetric: "平庸文明可見",
+                selectedMetric: "目前目標門檻",
+                transmitter: "假設發射功率",
+                sensitivity: "接收靈敏度增益",
+                lead: "平庸文明領先年數",
+                years: "年",
+                totalTargets: "全部目標",
+                timePass: "時間可行",
+                energyPass: "能量可達",
+                bothPass: "同時通過",
+                biasNote: "在這組參數下，多數普通文明即使存在也落在不可見區；被看見的樣本會偏向更古老、更高能量的來源。",
+                visible: "可見",
+                of: "/",
+                labLink: "開啟篩選偏差實驗室",
+                targetPanelTitle: "選取目標診斷"
             },
             en: {
                 title: "Exoplanet Signal Radar",
@@ -344,7 +549,25 @@
                 techWait3: " years",
                 techAlready: "Earth already had this radio tech for ",
                 techAlready2: " years",
-                techBeyondBar: "Radio tech required is beyond current era, cannot estimate wait time"
+                techBeyondBar: "Radio tech required is beyond current era, cannot estimate wait time",
+                evidenceTitle: "Selection Bias Evidence",
+                detectableMetric: "Detectable candidates",
+                radiusMetric: "Detection radius",
+                mundaneMetric: "Mundane civs visible",
+                selectedMetric: "Selected threshold",
+                transmitter: "Assumed transmitter power",
+                sensitivity: "Receiver sensitivity gain",
+                lead: "Mundane civilization lead",
+                years: "years",
+                totalTargets: "All targets",
+                timePass: "Time-feasible",
+                energyPass: "Energy-feasible",
+                bothPass: "Both filters",
+                biasNote: "With these parameters, most ordinary civilizations remain invisible even if they exist; the observed sample is biased toward older and higher-energy sources.",
+                visible: "visible",
+                of: "of",
+                labLink: "Open Selection Bias Lab",
+                targetPanelTitle: "Selected Target Diagnostics"
             },
             ja: {
                 title: "系外惑星電波信号レーダー",
@@ -368,11 +591,30 @@
                 techWait3: " 年",
                 techAlready: "人類はこの無線技術を既に ",
                 techAlready2: " 年間保有していました",
-                techBeyondBar: "現代を超越した無線技術のため、待機時間は見積もり不可"
+                techBeyondBar: "現代を超越した無線技術のため、待機時間は見積もり不可",
+                evidenceTitle: "選択バイアスの証拠",
+                detectableMetric: "検出可能候補",
+                radiusMetric: "検出半径",
+                mundaneMetric: "平凡文明の可視性",
+                selectedMetric: "現在目標の閾値",
+                transmitter: "仮定送信電力",
+                sensitivity: "受信感度ゲイン",
+                lead: "平凡文明の先行年数",
+                years: "年",
+                totalTargets: "全目標",
+                timePass: "時間的に可能",
+                energyPass: "エネルギー可能",
+                bothPass: "両方通過",
+                biasNote: "この条件では、普通の文明は存在しても多くが不可視です。観測される標本は、より古く高エネルギーな源へ偏ります。",
+                visible: "可視",
+                of: "/",
+                labLink: "選択バイアス実験室を開く",
+                targetPanelTitle: "選択目標の診断"
             }
         };
 
-        let currentLang = 'zh';
+        const LANGUAGE_STORAGE_KEY = 'preferredLanguage';
+        let currentLang = localStorage.getItem(LANGUAGE_STORAGE_KEY) || 'zh';
         
         const earthHistory = [
             { year: 1895, power: 100 },
@@ -468,15 +710,69 @@
             }
         }, 100);
 
-        function initApp() {
+        async function loadStarCatalog() {
+            const fallback = {
+                core: [
+                    { name: "Sirius", position: [-2.5, -0.9, 12.1], mag: -1.46, color: "#cad7ff" },
+                    { name: "Alpha Centauri", position: [-5.1, -10.8, -4.5], mag: -0.27, color: "#fff4d8" },
+                    { name: "Vega", position: [1.6, 7.8, -3.9], mag: 0.03, color: "#cad7ff" },
+                    { name: "Arcturus", position: [-7.4, 4.2, -5.2], mag: -0.05, color: "#ffd2a1" },
+                    { name: "Altair", position: [4.4, 1.2, -6.8], mag: 0.77, color: "#f8f7ff" }
+                ],
+                lodUrl: "data/stars-lod/lod1.json"
+            };
+
+            try {
+                const coreResponse = await fetch("data/stars-core.json");
+                if (!coreResponse.ok) throw new Error("Core star catalog unavailable");
+                return {
+                    core: await coreResponse.json(),
+                    lodUrl: "data/stars-lod/lod1.json"
+                };
+            } catch (error) {
+                console.warn("Using procedural fallback starfield:", error);
+                return fallback;
+            }
+        }
+
+        async function loadStarLod(url) {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`LOD catalog unavailable: ${url}`);
+            return response.json();
+        }
+
+        function buildFallbackGalaxy(count) {
+            const stars = [];
+            for (let i = 0; i < count; i++) {
+                const arm = Math.floor(Math.random() * 4);
+                const radius = Math.sqrt(Math.random()) * 1400 + 80;
+                const angle = arm * Math.PI / 2 + radius * 0.0105 + (Math.random() - 0.5) * 0.7;
+                const spread = Math.max(8, radius * 0.03);
+                stars.push({
+                    position: [
+                        Math.cos(angle) * radius + (Math.random() - 0.5) * spread,
+                        (Math.random() - 0.5) * (30 + radius * 0.03),
+                        Math.sin(angle) * radius + (Math.random() - 0.5) * spread
+                    ],
+                    mag: 5 + Math.random() * 6,
+                    color: Math.random() > 0.7 ? "#ffd2a1" : "#fff4d8"
+                });
+            }
+            return stars;
+        }
+
+        async function initApp() {
             const data = window.EXOPLANETS_DATA || [];
+            const starCatalog = await loadStarCatalog();
             
             // DOM Elements
             const titleText = document.getElementById('title-text');
             const premiseText = document.getElementById('premise-text');
             const langSelect = document.getElementById('lang-select');
+            const labLink = document.getElementById('lab-link');
             const planetList = document.getElementById('planet-list');
             const infoPanel = document.getElementById('info-panel');
+            const targetPanelTitle = document.getElementById('target-panel-title');
             
             const labelName = document.getElementById('label-name');
             const labelHost = document.getElementById('label-host');
@@ -494,6 +790,38 @@
             const timelinePanel = document.getElementById('timeline-panel');
             const timelineTitle = document.getElementById('timeline-title');
             const timelineContent = document.getElementById('timeline-content');
+            const evidenceTitle = document.getElementById('evidence-title');
+            const metricDetectable = document.getElementById('metric-detectable');
+            const metricDetectableLabel = document.getElementById('metric-detectable-label');
+            const metricRadius = document.getElementById('metric-radius');
+            const metricRadiusLabel = document.getElementById('metric-radius-label');
+            const metricMundane = document.getElementById('metric-mundane');
+            const metricMundaneLabel = document.getElementById('metric-mundane-label');
+            const metricSelectedClass = document.getElementById('metric-selected-class');
+            const metricSelectedLabel = document.getElementById('metric-selected-label');
+            const transmitterSlider = document.getElementById('transmitter-slider');
+            const sensitivitySlider = document.getElementById('sensitivity-slider');
+            const leadSlider = document.getElementById('lead-slider');
+            const labelTransmitter = document.getElementById('label-transmitter');
+            const labelSensitivity = document.getElementById('label-sensitivity');
+            const labelLead = document.getElementById('label-lead');
+            const valueTransmitter = document.getElementById('value-transmitter');
+            const valueSensitivity = document.getElementById('value-sensitivity');
+            const valueLead = document.getElementById('value-lead');
+            const funnelTotalLabel = document.getElementById('funnel-total-label');
+            const funnelTimeLabel = document.getElementById('funnel-time-label');
+            const funnelEnergyLabel = document.getElementById('funnel-energy-label');
+            const funnelBothLabel = document.getElementById('funnel-both-label');
+            const funnelTotal = document.getElementById('funnel-total');
+            const funnelTime = document.getElementById('funnel-time');
+            const funnelEnergy = document.getElementById('funnel-energy');
+            const funnelBoth = document.getElementById('funnel-both');
+            const funnelTotalValue = document.getElementById('funnel-total-value');
+            const funnelTimeValue = document.getElementById('funnel-time-value');
+            const funnelEnergyValue = document.getElementById('funnel-energy-value');
+            const funnelBothValue = document.getElementById('funnel-both-value');
+            const kardashevLegend = document.getElementById('kardashev-legend');
+            const biasNote = document.getElementById('bias-note');
 
             // Chart.js Setup
             const ctx = document.getElementById('power-chart').getContext('2d');
@@ -591,19 +919,86 @@
             const pointLight = new THREE.PointLight(0xffffff, 1.5, 0);
             scene.add(pointLight);
 
-            // Add stars background (Particle System)
-            const starGeo = new THREE.BufferGeometry();
-            const starMaterial = new THREE.PointsMaterial({color: 0xffffff, size: 0.8, transparent: true, opacity: 0.6});
-            const starVertices = [];
-            for(let i=0; i<5000; i++) {
-                const x = (Math.random() - 0.5) * 3000;
-                const y = (Math.random() - 0.5) * 3000;
-                const z = (Math.random() - 0.5) * 3000;
-                starVertices.push(x, y, z);
+            // Milky Way starfield: a small real-star core, lazy-ready LOD data, and a procedural far disk.
+            function addPointCloud(stars, options) {
+                const geometry = new THREE.BufferGeometry();
+                const positions = [];
+                const colors = [];
+                const color = new THREE.Color();
+
+                stars.forEach(star => {
+                    const position = star.position || [0, 0, 0];
+                    positions.push(position[0], position[1], position[2]);
+                    color.set(star.color || options.color || "#ffffff");
+                    const brightness = options.brightnessFromMag
+                        ? Math.max(0.25, Math.min(1.0, 1.15 - ((star.mag || 6) + 1.5) / 12))
+                        : 1;
+                    colors.push(color.r * brightness, color.g * brightness, color.b * brightness);
+                });
+
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+                const material = new THREE.PointsMaterial({
+                    size: options.size,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: options.opacity,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending
+                });
+
+                const points = new THREE.Points(geometry, material);
+                scene.add(points);
+                return points;
             }
-            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
-            const stars = new THREE.Points(starGeo, starMaterial);
-            scene.add(stars);
+
+            function buildMilkyWayDust(count) {
+                const stars = [];
+                for (let i = 0; i < count; i++) {
+                    const radius = Math.pow(Math.random(), 0.55) * 1500 + 110;
+                    const angle = radius * 0.0105 + Math.floor(Math.random() * 4) * Math.PI / 2 + (Math.random() - 0.5) * 0.42;
+                    const haze = Math.max(18, radius * 0.045);
+                    stars.push({
+                        position: [
+                            Math.cos(angle) * radius + (Math.random() - 0.5) * haze,
+                            (Math.random() - 0.5) * (50 + radius * 0.035),
+                            Math.sin(angle) * radius + (Math.random() - 0.5) * haze
+                        ],
+                        color: Math.random() > 0.78 ? "#7dd3fc" : "#f8fafc"
+                    });
+                }
+                return stars;
+            }
+
+            const coreStars = starCatalog.core || [];
+            const milkyWayDust = buildMilkyWayDust(4200);
+
+            const farGalaxy = addPointCloud(milkyWayDust, { size: 1.1, opacity: 0.23, color: "#ffffff" });
+            let lodGalaxy = addPointCloud(buildFallbackGalaxy(600), { size: 0.75, opacity: 0.25, brightnessFromMag: true });
+            const realStarCore = addPointCloud(coreStars, { size: 2.2, opacity: 0.9, brightnessFromMag: true });
+
+            loadStarLod(starCatalog.lodUrl)
+                .then(lodStars => {
+                    scene.remove(lodGalaxy);
+                    lodGalaxy.geometry.dispose();
+                    lodGalaxy.material.dispose();
+                    lodGalaxy = addPointCloud(lodStars, { size: 0.9, opacity: 0.5, brightnessFromMag: true });
+                })
+                .catch(error => {
+                    console.warn("Keeping procedural LOD starfield:", error);
+                });
+
+            const galaxyCoreGeo = new THREE.SphereGeometry(80, 32, 32);
+            const galaxyCoreMat = new THREE.MeshBasicMaterial({
+                color: 0xf8d7a2,
+                transparent: true,
+                opacity: 0.055,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const galaxyCoreGlow = new THREE.Mesh(galaxyCoreGeo, galaxyCoreMat);
+            scene.add(galaxyCoreGlow);
 
             // Earth
             const earthGroup = new THREE.Group();
@@ -623,6 +1018,43 @@
             const glowMat = new THREE.MeshBasicMaterial({ color: 0x44aaff, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending });
             const earthGlow = new THREE.Mesh(glowGeo, glowMat);
             earthGroup.add(earthGlow);
+
+            const kardashevClasses = [
+                { id: 'earth', label: 'Earth', labelZh: '地球級', labelJa: '地球級', maxPower: 1e14, color: 0x38bdf8, css: '#38bdf8' },
+                { id: 'type1', label: 'Type I', labelZh: '第一型', labelJa: 'タイプI', maxPower: 1e16, color: 0x22c55e, css: '#22c55e' },
+                { id: 'interstellar', label: 'Interstellar', labelZh: '星際級', labelJa: '恒星間級', maxPower: 1e20, color: 0xfbbf24, css: '#fbbf24' },
+                { id: 'type2', label: 'Type II+', labelZh: '第二型+', labelJa: 'タイプII+', maxPower: Infinity, color: 0xf97316, css: '#f97316' }
+            ];
+
+            function getKardashevClass(power) {
+                return kardashevClasses.find(item => power <= item.maxPower) || kardashevClasses[kardashevClasses.length - 1];
+            }
+
+            function getKardashevLabel(item, lang = currentLang) {
+                if (lang === 'zh') return item.labelZh;
+                if (lang === 'ja') return item.labelJa;
+                return item.label;
+            }
+
+            function getDetectionModel() {
+                const transmitterPower = Math.pow(10, Number(transmitterSlider.value));
+                const sensitivityGain = Math.pow(10, Number(sensitivitySlider.value));
+                const leadYears = Number(leadSlider.value);
+                const effectivePower = transmitterPower * sensitivityGain;
+                const radiusLy = Math.sqrt(effectivePower / 1.12e11);
+                return { transmitterPower, sensitivityGain, leadYears, effectivePower, radiusLy };
+            }
+
+            const detectionShellGeo = new THREE.SphereGeometry(1, 48, 24);
+            const detectionShellMat = new THREE.MeshBasicMaterial({
+                color: 0x38bdf8,
+                transparent: true,
+                opacity: 0.055,
+                wireframe: true,
+                depthWrite: false
+            });
+            const detectionShell = new THREE.Mesh(detectionShellGeo, detectionShellMat);
+            scene.add(detectionShell);
 
             // Planets mapping
             const planetMeshes = [];
@@ -650,13 +1082,8 @@
                 const y = r * Math.sin(phi) * Math.sin(theta);
                 const z = r * Math.cos(phi);
 
-                // 顏色對應距離與宜居狀態
-                if (p.isHabitable) {
-                    planetColor.setHex(0x22ff44); // 綠色
-                } else {
-                    const hue = Math.max(0, 0.6 - (logDist / 5));
-                    planetColor.setHSL(hue, 0.8, 0.6);
-                }
+                p.kardashevClass = getKardashevClass(p.required_power_w);
+                planetColor.setHex(p.kardashevClass.color);
 
                 // Planet Group
                 const pGroup = new THREE.Group();
@@ -667,7 +1094,9 @@
                 const pMat = new THREE.MeshPhongMaterial({ 
                     color: planetColor.getHex(),
                     emissive: planetColor.getHex(),
-                    emissiveIntensity: 0.5
+                    emissiveIntensity: 0.5,
+                    transparent: true,
+                    opacity: 1
                 });
                 const pMesh = new THREE.Mesh(pGeo, pMat);
                 pMesh.userData = { ...p, index: index, originalColor: planetColor.getHex() };
@@ -720,11 +1149,96 @@
                 }
             }
 
+            function formatCompactPower(power) {
+                const exponent = Math.log10(power);
+                if (!Number.isFinite(exponent)) return '-';
+                return `10^${exponent.toFixed(exponent % 1 === 0 ? 0 : 1)} W`;
+            }
+
+            function setFunnel(fill, valueEl, count, total) {
+                const percent = total > 0 ? Math.max(2, (count / total) * 100) : 0;
+                fill.style.width = `${percent}%`;
+                valueEl.innerText = count.toString();
+            }
+
+            function updateEvidencePanel() {
+                const txt = i18n[currentLang];
+                const model = getDetectionModel();
+                const total = data.length;
+                const timeFeasible = data.filter(p => p.distance_ly <= model.leadYears).length;
+                const energyFeasible = data.filter(p => p.required_power_w <= model.effectivePower).length;
+                const bothFeasible = data.filter(p => p.distance_ly <= model.leadYears && p.required_power_w <= model.effectivePower).length;
+                const selectedClass = activeIndex === -1 ? null : data[activeIndex].kardashevClass;
+
+                evidenceTitle.innerText = txt.evidenceTitle;
+                metricDetectableLabel.innerText = txt.detectableMetric;
+                metricRadiusLabel.innerText = txt.radiusMetric;
+                metricMundaneLabel.innerText = txt.mundaneMetric;
+                metricSelectedLabel.innerText = txt.selectedMetric;
+                labelTransmitter.innerText = txt.transmitter;
+                labelSensitivity.innerText = txt.sensitivity;
+                labelLead.innerText = txt.lead;
+                funnelTotalLabel.innerText = txt.totalTargets;
+                funnelTimeLabel.innerText = txt.timePass;
+                funnelEnergyLabel.innerText = txt.energyPass;
+                funnelBothLabel.innerText = txt.bothPass;
+                biasNote.innerText = txt.biasNote;
+
+                metricDetectable.innerText = `${bothFeasible} ${txt.of} ${total}`;
+                metricRadius.innerText = `${Math.round(model.radiusLy).toLocaleString()} ${txt.ly}`;
+                metricMundane.innerText = `${bothFeasible} ${txt.visible}`;
+                metricSelectedClass.innerText = selectedClass ? getKardashevLabel(selectedClass) : '-';
+
+                valueTransmitter.innerText = formatCompactPower(model.transmitterPower);
+                valueSensitivity.innerText = `${model.sensitivityGain.toLocaleString(undefined, { maximumFractionDigits: 0 })}x`;
+                valueLead.innerText = `${model.leadYears} ${txt.years}`;
+
+                setFunnel(funnelTotal, funnelTotalValue, total, total);
+                setFunnel(funnelTime, funnelTimeValue, timeFeasible, total);
+                setFunnel(funnelEnergy, funnelEnergyValue, energyFeasible, total);
+                setFunnel(funnelBoth, funnelBothValue, bothFeasible, total);
+
+                kardashevLegend.innerHTML = '';
+                kardashevClasses.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'legend-item';
+                    const swatch = document.createElement('span');
+                    swatch.className = 'legend-swatch';
+                    swatch.style.background = item.css;
+                    swatch.style.color = item.css;
+                    const label = document.createElement('span');
+                    label.innerText = getKardashevLabel(item);
+                    row.appendChild(swatch);
+                    row.appendChild(label);
+                    kardashevLegend.appendChild(row);
+                });
+
+                const shellRadius = Math.max(1, Math.log10(Math.max(model.radiusLy, 1)) * 90);
+                detectionShell.scale.setScalar(shellRadius);
+                detectionShell.visible = shellRadius > 1;
+
+                planetMeshes.forEach(pm => {
+                    const p = pm.mesh.userData;
+                    const visibleThroughFilter = p.distance_ly <= model.leadYears && p.required_power_w <= model.effectivePower;
+                    const keepSelectedVisible = p.index === activeIndex;
+                    const opacity = (visibleThroughFilter || keepSelectedVisible) ? 1 : 0.26;
+                    pm.mesh.material.opacity = opacity;
+                    pm.mesh.material.emissiveIntensity = visibleThroughFilter ? 0.62 : 0.18;
+                    if (pm.group.children[1] && pm.group.children[1].material) {
+                        pm.group.children[1].material.opacity = visibleThroughFilter ? (p.isHabitable ? 0.5 : 0.2) : 0.06;
+                    }
+                });
+            }
+
             // Update UI Text
             function updateUI() {
                 const txt = i18n[currentLang];
+                document.documentElement.lang = currentLang === 'zh' ? 'zh-TW' : currentLang;
+                langSelect.value = currentLang;
                 titleText.innerText = txt.title;
                 premiseText.innerText = txt.premise;
+                labLink.innerText = txt.labLink;
+                targetPanelTitle.innerText = txt.targetPanelTitle;
                 labelName.innerText = txt.name;
                 labelHost.innerText = txt.host;
                 labelDist.innerText = txt.dist;
@@ -740,7 +1254,9 @@
                     
                     const nameDiv = document.createElement('div');
                     nameDiv.className = 'planet-name';
-                    nameDiv.innerHTML = p.pl_name + (p.isHabitable ? `<span class="habitable-badge">${txt.habitable}</span>` : "");
+                    nameDiv.innerHTML = p.pl_name
+                        + `<span class="kardashev-badge" style="background:${p.kardashevClass.css}">${getKardashevLabel(p.kardashevClass)}</span>`
+                        + (p.isHabitable ? `<span class="habitable-badge">${txt.habitable}</span>` : "");
                     
                     const distDiv = document.createElement('div');
                     distDiv.className = 'planet-dist';
@@ -752,6 +1268,7 @@
                     item.addEventListener('click', () => selectPlanet(index));
                     planetList.appendChild(item);
                 });
+                updateEvidencePanel();
             }
 
             let activeIndex = -1;
@@ -774,7 +1291,9 @@
 
                 // Update Info Panel
                 infoPanel.style.display = 'block';
-                valName.innerHTML = p.pl_name + (p.isHabitable ? `<span class="habitable-badge">${txt.habitable}</span>` : "");
+                valName.innerHTML = p.pl_name
+                    + `<span class="kardashev-badge" style="background:${p.kardashevClass.css}">${getKardashevLabel(p.kardashevClass)}</span>`
+                    + (p.isHabitable ? `<span class="habitable-badge">${txt.habitable}</span>` : "");
                 valHost.innerText = p.hostname;
                 valDist.innerText = `${p.distance_ly.toFixed(2)} ${txt.ly}`;
                 valSignal.innerText = formatYear(Math.floor(p.signal_year), currentLang);
@@ -938,13 +1457,26 @@
                     
                 // Scroll list to item
                 if(currItem) currItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                updateEvidencePanel();
             }
 
             // Listeners
             langSelect.addEventListener('change', (e) => {
                 currentLang = e.target.value;
+                localStorage.setItem(LANGUAGE_STORAGE_KEY, currentLang);
                 updateUI();
                 if(activeIndex !== -1) selectPlanet(activeIndex); // Refresh info panel texts
+            });
+            window.addEventListener('storage', (event) => {
+                if (event.key === LANGUAGE_STORAGE_KEY && event.newValue && i18n[event.newValue]) {
+                    currentLang = event.newValue;
+                    updateUI();
+                    if(activeIndex !== -1) selectPlanet(activeIndex);
+                }
+            });
+
+            [transmitterSlider, sensitivitySlider, leadSlider].forEach(slider => {
+                slider.addEventListener('input', updateEvidencePanel);
             });
 
             window.addEventListener('resize', () => {
@@ -982,6 +1514,10 @@
                 
                 earthGroup.rotation.y += 0.002;
                 earthGlow.scale.setScalar(1 + Math.sin(time * 0.002) * 0.05); // Pulsing glow
+                farGalaxy.rotation.y += 0.000015;
+                lodGalaxy.rotation.y += 0.000025;
+                realStarCore.rotation.y += 0.00001;
+                galaxyCoreGlow.scale.setScalar(1 + Math.sin(time * 0.0008) * 0.035);
 
                 // 宜居行星閃爍效果
                 planetMeshes.forEach(pm => {

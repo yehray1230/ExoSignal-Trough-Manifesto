@@ -1,24 +1,197 @@
-# Observer Selection Bias: Spatiotemporal and Energy Threshold Models in Interstellar Radio Communication
+# Observer Selection Bias in Interstellar Radio Detection
+
 ## 摘要 / Abstract
-This project establishes a dynamic model utilizing 3D visualization and astrophysical calculations to explore the feasibility of interstellar radio communication. While it is commonly assumed that potential extraterrestrial intelligence might share a similar technological developmental stage with Earth, our physically grounded model demonstrates that Earth is inevitably positioned in a "technology trough" on an observable cosmic scale. This phenomenon does not imply an absence of mediocre civilizations, but rather highlights an observer selection bias strictly dictated by physical filtering mechanisms.
 
-本專案透過 3D 視覺化與天文物理運算，建立了一個探討星際射電通訊（Interstellar Radio Communication）可行性的動態模型。我們常態性地假設潛在的地外文明可能與地球處於相近的科技發展階段；然而，本模型基於物理法則的推演指出，在可觀測的宇宙尺度下，地球必然處於一個「通訊技術窪地（Technology Trough）」。此現象並非源於宇宙中缺乏平庸文明，而是由嚴格的物理篩選機制所導致的觀測者選擇偏差（Observer Selection Bias）。
+本專案以互動式 3D 視覺化與簡化天文物理模型，探討地球式射電觀測在搜尋星際文明訊號時可能產生的觀測者選擇偏誤。模型不試圖估計地外文明的真實數量，而是聚焦於一個較可檢驗的問題：在光速延遲與平方反比衰減的限制下，哪些訊號來源比較可能進入地球的可偵測樣本？
 
-## 核心物理限制 / Core Physical Constraints
-### 1.Spatiotemporal Asynchrony due to Light-Speed Delay
-The propagation of electromagnetic waves is bounded by the speed of light in a vacuum. When Earth detects a signal from a star system $d$ light-years away, the signal was definitively broadcast $d$ years ago. Consequently, the source's timeline for radio technology development must precede Earth's absolute timeline by an equivalent magnitude. The greater the observational distance, the more pronounced this lower bound of technological precedence becomes.
+The project uses interactive 3D visualization and simplified astrophysical modeling to examine observer selection effects in Earth-based radio searches for interstellar communication. It does not estimate the absolute number of extraterrestrial civilizations. Instead, it asks which subset of possible emitters would preferentially survive the temporal and energetic filters imposed by light-speed delay and inverse-square attenuation.
 
-### 2.Inverse-Square Attenuation and Energy Thresholds
-Following the inverse-square law for isotropic radiation, electromagnetic signal flux attenuates exponentially with the square of the distance. Using the minimum detectable flux of Earth's most sensitive single-dish radio telescopes (e.g., FAST) as a baseline, the required transmission power across kiloparsec scales easily exceeds Earth's current total planetary power consumption. The model calculations indicate that the transmitting source for deep-space communication must, with high probability, possess stellar-scale energy manipulation capabilities, aligning with a Kardashev Type II civilization or higher.
+## 研究問題 / Research Question
 
-### 1.光速延遲與時空不同步 (Spatiotemporal Asynchrony due to Light-Speed Delay)
-電磁波的傳播受限於真空光速c當地球接收到來自距離 $d$ 光年外的星系訊號時，該訊號必然發射於 $d$ 年前。因此，訊號源的無線電技術發展時間線，在時間軸上必定領先地球相應的絕對年份。距離越遠的觀測目標，其技術領先的下限（Lower bound）就越顯著。
+本專案的核心問題是：
 
-### 2.平方反比衰減與能量閾值 (Inverse-Square Attenuation and Energy Thresholds)
-依據全向輻射的平方反比定律（Inverse-square law），電磁訊號通量隨距離的平方呈指數級衰減。以目前地球最具代表性的單口徑射電望遠鏡（如 FAST）之最低可偵測通量為基準，跨越千光年尺度的通訊所需之發射功率P，將輕易突破地球現有的總發電量。模型運算顯示，深空通訊的發射端極大概率需具備卡爾達肖夫指數（Kardashev Scale）第二型甚至更高的恆星級能量控制能力。
+> 若生命或技術文明在宇宙中廣泛分布，地球透過射電方法所能觀測到的樣本，是否仍會系統性偏向距離較近、發射功率較高，或在時間上更早具備射電能力的來源？
 
-## 結論 / Conclusion
+因此，本專案討論的是「可觀測樣本如何被物理條件篩選」，而不是直接主張「生命是否稀有」或「文明是否必然存在」。
 
-The visualization results of this project reveal that any non-natural radio signal capable of overcoming extreme spatial attenuation to reach Earth implies an overwhelming asymmetric advantage in both temporal history and energy output at the source. The search for extraterrestrial intelligence (SETI) fundamentally acts as an extreme-threshold filter. Within this framework, Earth, as the receiving endpoint, will unavoidably manifest as a technological trough.
+## 專案概述 / Project Overview
 
-本專案之視覺化結果表明，任何能克服劇烈空間衰減、最終抵達地球接收端的非自然射電訊號，其發射源在時間跨度與能量輸出上，均具備壓倒性的不對稱優勢。尋找地外文明（SETI）的本質，實際上是在建立一個極高閾值的過濾器；而在這個框架下，地球作為接收端，將不可避免地呈現出技術窪地的狀態。
+前端應用程式會在 Three.js 場景中呈現系外行星與銀河星場，並估算若地球於 `2026` 年接收到某一目標訊號，該訊號的可能發射年份與所需有效射電功率。專案結合以下元素：
+
+- 由 NASA Exoplanet Archive 查詢並整理的系外行星資料。
+- 分層式銀河星圖資料，用於在前端維持星場尺度感。
+- 以光年距離推導的訊號發射年代。
+- 以平方反比關係估算的有效功率門檻。
+- 用於比較地球射電技術史與假想訊號來源的互動式時間軸。
+- 用於檢視時間門檻與能量門檻交集的 Selection Bias Lab。
+
+## 方法 / Method
+
+### 1. 訊號時間模型
+
+對距離為 `d` 光年的目標，若地球於年份 `T_observed` 接收到訊號，模型將發射年份表示為：
+
+```text
+T_emit = T_observed - d
+```
+
+在目前設定中：
+
+```text
+T_observed = 2026
+```
+
+此公式表示，越遠的訊號來源必須越早具備對應射電能力，才能在 2026 年被地球接收。
+
+### 2. 能量門檻模型
+
+在簡化全向或等效全向發射的假設下，訊號通量會隨距離平方衰減。模型使用下式作為概念性門檻：
+
+```text
+P_required = K * d^2
+```
+
+其中 `P_required` 為所需有效發射功率，`d` 為距離，`K` 是模型中的比例常數。現有資料產生腳本採用：
+
+```text
+P_required = 1.12e11 * distance_ly^2
+```
+
+此數值不應被解讀為特定天文台的完整儀器模型，而是用於展示距離衰減如何快速提高可偵測門檻。
+
+### 3. 觀測篩選模型
+
+本專案將潛在目標依序放入三類篩選條件：
+
+- 時間可行性：訊號來源是否必須在不合理的早期年代就具備射電能力。
+- 能量可行性：假設發射功率是否足以跨越距離衰減後仍被地球偵測。
+- 聯合可觀測性：同時通過時間與能量條件的目標子集合。
+
+這些條件共同構成 SETI 射電搜尋中的「極端門檻過濾器」。
+
+## 主要參數 / Parameters
+
+| 參數 | 意義 | 單位 | 預設值或來源 |
+|---|---|---:|---|
+| `T_observed` | 地球接收訊號的年份 | year | `2026` |
+| `d` | 目標距離 | light-year | 由 `sy_dist` 換算 |
+| `sy_dist` | NASA 資料中的恆星距離 | parsec | NASA Exoplanet Archive |
+| `distance_ly` | 換算後距離 | light-year | `sy_dist * 3.26156` |
+| `T_emit` | 模型推估發射年份 | year | `T_observed - d` |
+| `P_required` | 所需有效發射功率 | watt | `1.12e11 * d^2` |
+| `lead_time` | 假想普通文明領先地球年數 | year | 由介面滑桿控制 |
+
+## 視覺化介面 / Visualization
+
+### Main Visualization
+
+`index.html` 是主要 3D 場景。它將系外行星、星場、偵測半徑、卡爾達肖夫能量尺度與地球射電技術時間軸整合在同一個互動介面中。
+
+主要用途：
+
+- 觀察不同距離目標對發射年份的要求。
+- 比較不同目標的所需功率等級。
+- 透過偵測半徑球殼理解功率與靈敏度的影響。
+- 將單一目標放入地球技術史脈絡中閱讀。
+
+### Selection Bias Lab
+
+`selection-bias-lab.html` 是研究面板，用於更明確地呈現篩選機制。
+
+主要用途：
+
+- 以距離與所需功率的相位空間檢視目標分布。
+- 顯示 SETI threshold funnel 中每一層篩選後的剩餘樣本。
+- 觀察「普通文明只領先地球數十年至數百年」時，可觀測樣本如何急遽縮小。
+- 將可觀測樣本理解為被物理限制塑形後的非代表性子集合。
+
+## 資料來源與再現性 / Data and Reproducibility
+
+系外行星資料由 `fetch_exoplanets.py` 透過 NASA Exoplanet Archive TAP API 查詢：
+
+```text
+https://exoplanetarchive.ipac.caltech.edu/TAP/sync
+```
+
+目前查詢欄位包含：
+
+- `pl_name`
+- `hostname`
+- `sy_dist`
+
+星圖資料採分層策略：
+
+- `data/stars-core.json`：少量明亮實星錨點。
+- `data/stars-lod/lod1.json`：程序生成的第一層銀河點雲。
+- runtime procedural stars：執行時產生的遠場星點，用於增加尺度感。
+
+資料策略的細節請見 [data/README.md](data/README.md)。
+
+## 模型限制 / Limitations
+
+本專案目前採用概念性模型，並不包含完整射電天文儀器模擬。以下因素尚未細緻納入：
+
+- 星際介質造成的閃爍、吸收或散射。
+- 頻寬、訊號編碼、調變方式與搜尋策略完整性。
+- 都卜勒漂移與觀測窗口限制。
+- 發射占空比與文明主動發射意圖。
+- 定向波束幾何的詳細建模。
+- 行星適居性、生命發生率或文明壽命的統計模型。
+
+因此，圖中門檻應被視為「物理選擇壓力的方向性示範」，而不是對任一特定目標的觀測預報。
+
+## 專案結構 / Repository Structure
+
+```text
+.
+|-- index.html                  # Main Three.js visualization
+|-- selection-bias-lab.html     # Research dashboard for detection-selection effects
+|-- ASSUMPTIONS.md              # Modeling assumptions and interpretation notes
+|-- data.js                     # Exoplanet dataset used by the app
+|-- fetch_exoplanets.py         # NASA Exoplanet Archive data fetcher
+|-- data/
+|   |-- README.md               # Star catalog data and reproducibility notes
+|   |-- stars-core.json         # Compact real-star anchor layer
+|   `-- stars-lod/
+|       `-- lod1.json           # First LOD starfield layer
+`-- scripts/
+    `-- build_star_catalog.py   # Star catalog layer generator
+```
+
+## 本機執行 / Running Locally
+
+由於前端會透過 `fetch` 載入 JSON 星表資料，建議使用本機靜態伺服器啟動，而不是直接雙擊開啟 `index.html`。
+
+```bash
+python -m http.server 8000
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8000/index.html
+```
+
+若 Python 不在 `PATH` 中，也可使用任何能提供專案根目錄的靜態檔案伺服器。
+
+## 重新產生資料 / Regenerating Data
+
+Fetch or refresh the exoplanet data:
+
+```bash
+python fetch_exoplanets.py
+```
+
+Regenerate the compact star catalog layers:
+
+```bash
+python scripts/build_star_catalog.py
+```
+
+大型原始星表不應直接提交至 Git。建議放置於 Git 忽略路徑，例如 `data/raw/`，或在發佈時透過 GitHub Release、物件儲存或 CDN 提供。
+
+## 解讀結論 / Interpretation
+
+本專案的主要結論是條件式的：若生命或文明廣泛分布，而地球透過受光速延遲與平方反比衰減限制的射電方法搜尋，則可觀測樣本仍可能高度不代表底層真實分布。
+
+換言之，未偵測到普通文明不必然代表普通文明稀少；它也可能表示普通文明在進入可觀測樣本之前，就已被時間與能量條件排除。地球在此框架下呈現出的「技術窪地」，是觀測方法與物理限制共同塑造的結果。

@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+
+# Keep generated front-end star tiles small. Put raw Gaia/HYG exports outside git.
+data/raw/
+data/**/*.csv
+data/**/*.fits
+data/**/*.parquet
+data/**/*.h5
+data/**/*.gz
+data/**/*.zip

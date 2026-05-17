@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selection Bias Lab</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #030816;
+            --panel: rgba(15, 23, 42, 0.76);
+            --line: rgba(148, 163, 184, 0.22);
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --gold: #fbbf24;
+            --green: #22c55e;
+            --orange: #f97316;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background:
+                radial-gradient(circle at 24% 12%, rgba(56, 189, 248, 0.12), transparent 28%),
+                radial-gradient(circle at 88% 20%, rgba(251, 191, 36, 0.08), transparent 30%),
+                var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+        }
+        .shell {
+            width: min(1440px, calc(100vw - 36px));
+            margin: 0 auto;
+            padding: 22px 0 34px;
+        }
+        header {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 18px;
+            align-items: start;
+            margin-bottom: 18px;
+        }
+        h1 {
+            margin: 0 0 8px;
+            font-size: clamp(1.45rem, 3vw, 2.35rem);
+            letter-spacing: 0;
+        }
+        .subtitle {
+            max-width: 880px;
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.55;
+            font-size: 0.98rem;
+        }
+        .nav {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .nav a, .nav select {
+            color: #bae6fd;
+            text-decoration: none;
+            border: 1px solid rgba(125, 211, 252, 0.36);
+            border-radius: 8px;
+            background: rgba(14, 116, 144, 0.18);
+            padding: 10px 12px;
+            font-size: 0.86rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .nav select {
+            min-width: 132px;
+            color: #fff;
+        }
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+            backdrop-filter: blur(12px);
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(150px, 1fr));
+            gap: 14px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .control label {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            color: #cbd5e1;
+            font-size: 0.8rem;
+            margin-bottom: 8px;
+        }
+        .control strong {
+            color: #fff;
+            text-align: right;
+            white-space: nowrap;
+        }
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+        }
+        select {
+            width: 100%;
+            padding: 9px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--line);
+            background: rgba(2, 6, 23, 0.72);
+            color: #fff;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1.55fr 0.9fr;
+            gap: 16px;
+        }
+        .lower-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .chart-card {
+            padding: 16px;
+            min-height: 360px;
+        }
+        .chart-card.large {
+            min-height: 540px;
+        }
+        .card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+        h2 {
+            margin: 0 0 5px;
+            font-size: 1rem;
+            letter-spacing: 0;
+        }
+        .caption {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+        .metric-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .metric {
+            padding: 11px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: rgba(2, 6, 23, 0.38);
+        }
+        .metric strong {
+            display: block;
+            font-size: 1.15rem;
+            color: #fff;
+        }
+        .metric span {
+            display: block;
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 0.75rem;
+        }
+        .funnel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .funnel-step {
+            display: grid;
+            grid-template-columns: 128px 1fr 62px;
+            gap: 10px;
+            align-items: center;
+            color: #dbeafe;
+            font-size: 0.84rem;
+        }
+        .track {
+            height: 14px;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.16);
+            overflow: hidden;
+        }
+        .fill {
+            height: 100%;
+            border-radius: inherit;
+            width: 0;
+            transition: width 0.25s ease;
+            background: linear-gradient(90deg, var(--accent), var(--green));
+        }
+        canvas {
+            width: 100% !important;
+        }
+        .chart-wrap {
+            position: relative;
+            height: 440px;
+        }
+        .chart-wrap.small {
+            height: 300px;
+        }
+        #heatmap {
+            display: block;
+            height: 300px !important;
+            border-radius: 8px;
+            background: rgba(2, 6, 23, 0.48);
+            border: 1px solid rgba(148, 163, 184, 0.16);
+        }
+        .heatmap-axis {
+            display: flex;
+            justify-content: space-between;
+            color: var(--muted);
+            font-size: 0.75rem;
+            margin-top: 8px;
+        }
+        .note {
+            margin-top: 14px;
+            padding: 12px;
+            border-left: 3px solid var(--gold);
+            color: #fde68a;
+            background: rgba(251, 191, 36, 0.08);
+            line-height: 1.5;
+            font-size: 0.86rem;
+        }
+        @media (max-width: 1100px) {
+            header, .grid, .lower-grid { grid-template-columns: 1fr; }
+            .controls { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 640px) {
+            .shell { width: min(100vw - 24px, 1440px); }
+            .controls, .metric-row { grid-template-columns: 1fr; }
+            .nav { flex-direction: column; align-items: stretch; }
+            .funnel-step { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <header>
+            <div>
+                <h1 id="page-title">Selection Bias Lab: Physical Filtering in Interstellar Radio Detection</h1>
+                <p class="subtitle" id="page-subtitle">
+                    This dashboard reframes the exoplanet sample as an observational-selection experiment. It visualizes how light-speed delay, inverse-square attenuation, receiver sensitivity, and assumed transmitter power transform a broad target population into a biased set of detectable high-threshold cases.
+                </p>
+            </div>
+            <nav class="nav">
+                <select id="lang-select" aria-label="Language">
+                    <option value="zh">繁體中文</option>
+                    <option value="en">English (US)</option>
+                    <option value="ja">日本語</option>
+                </select>
+                <a id="radar-link" href="index.html">Return to 3D Signal Radar</a>
+                <a id="readme-link" href="README.md">Read Methodological Notes</a>
+            </nav>
+        </header>
+
+        <section class="panel controls" aria-label="Model controls">
+            <div class="control">
+                <label><span id="label-power">Assumed isotropic transmitter power</span><strong id="power-value">10^14 W</strong></label>
+                <input id="power-slider" type="range" min="12" max="26" step="0.25" value="14">
+            </div>
+            <div class="control">
+                <label><span id="label-sensitivity">Receiver sensitivity gain</span><strong id="sensitivity-value">1x</strong></label>
+                <input id="sensitivity-slider" type="range" min="0" max="6" step="0.25" value="0">
+            </div>
+            <div class="control">
+                <label><span id="label-lead">Mundane-civilization lead time</span><strong id="lead-value">100 yr</strong></label>
+                <input id="lead-slider" type="range" min="25" max="1000" step="25" value="100">
+            </div>
+            <div class="control">
+                <label><span id="label-epoch">Earth receiving epoch</span><strong id="epoch-value">2026</strong></label>
+                <input id="epoch-slider" type="range" min="1900" max="2300" step="5" value="2026">
+            </div>
+            <div class="control">
+                <label><span id="label-geometry">Emission geometry</span><strong id="geometry-value">Isotropic</strong></label>
+                <select id="geometry-select">
+                    <option value="0">Isotropic broadcast</option>
+                    <option value="3">Moderately directed beam (10^3)</option>
+                    <option value="6">Narrow directed beam (10^6)</option>
+                </select>
+            </div>
+        </section>
+
+        <main class="grid">
+            <section class="panel chart-card large">
+                <div class="card-head">
+                    <div>
+                        <h2 id="scatter-title">Distance-Power Phase Space</h2>
+                        <p class="caption" id="scatter-caption">Each point is an exoplanet target. The log-log structure reveals that distance rapidly drives required transmission power into extreme technological regimes.</p>
+                    </div>
+                </div>
+                <div class="metric-row">
+                    <div class="metric"><strong id="metric-visible">-</strong><span id="metric-visible-label">jointly detectable targets</span></div>
+                    <div class="metric"><strong id="metric-radius">-</strong><span id="metric-radius-label">effective detection radius</span></div>
+                    <div class="metric"><strong id="metric-time">-</strong><span id="metric-time-label">time-feasible fraction</span></div>
+                    <div class="metric"><strong id="metric-energy">-</strong><span id="metric-energy-label">energy-feasible fraction</span></div>
+                </div>
+                <div class="chart-wrap">
+                    <canvas id="scatter-chart"></canvas>
+                </div>
+            </section>
+
+            <section class="panel chart-card">
+                <div class="card-head">
+                    <div>
+                        <h2 id="funnel-title">SETI Threshold Funnel</h2>
+                        <p class="caption" id="funnel-caption">The funnel treats detectability as a sequence of physical filters rather than as a neutral census of civilizations.</p>
+                    </div>
+                </div>
+                <div class="funnel">
+                    <div class="funnel-step"><span id="funnel-total-label">All candidate systems</span><div class="track"><div class="fill" id="fill-total"></div></div><strong id="count-total">-</strong></div>
+                    <div class="funnel-step"><span id="funnel-time-label">Light-delay feasible</span><div class="track"><div class="fill" id="fill-time"></div></div><strong id="count-time">-</strong></div>
+                    <div class="funnel-step"><span id="funnel-energy-label">Energy-threshold feasible</span><div class="track"><div class="fill" id="fill-energy"></div></div><strong id="count-energy">-</strong></div>
+                    <div class="funnel-step"><span id="funnel-both-label">Jointly observable</span><div class="track"><div class="fill" id="fill-both"></div></div><strong id="count-both">-</strong></div>
+                </div>
+                <div class="note" id="funnel-note"></div>
+            </section>
+        </main>
+
+        <section class="lower-grid">
+            <section class="panel chart-card">
+                <div class="card-head">
+                    <div>
+                        <h2 id="heatmap-title">Mundane-Civilization Invisibility Region</h2>
+                        <p class="caption" id="heatmap-caption">Heatmap cells show the fraction of targets that survive both the lead-time and energy filters. Dark regions are not empty of civilizations; they are inaccessible to this detection method.</p>
+                    </div>
+                </div>
+                <canvas id="heatmap"></canvas>
+                <div class="heatmap-axis"><span id="heatmap-left">Lead time: 25 yr</span><span id="heatmap-mid">Transmitter power: 10^12 W to 10^26 W</span><span id="heatmap-right">Lead time: 1000 yr</span></div>
+            </section>
+
+            <section class="panel chart-card">
+                <div class="card-head">
+                    <div>
+                        <h2 id="distribution-title">Underlying Targets vs Observable Sample</h2>
+                        <p class="caption" id="distribution-caption">A comparison of the full target set with the subset that passes the selected physical thresholds. The observed sample is therefore not representative of the underlying opportunity space.</p>
+                    </div>
+                </div>
+                <div class="chart-wrap small">
+                    <canvas id="distribution-chart"></canvas>
+                </div>
+                <div class="note" id="distribution-note"></div>
+            </section>
+        </section>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const LANGUAGE_STORAGE_KEY = 'preferredLanguage';
+        let currentLang = localStorage.getItem(LANGUAGE_STORAGE_KEY) || 'zh';
+        const i18n = {
+            zh: {
+                pageTitle: '篩選偏差實驗室：星際射電偵測中的物理過濾',
+                pageSubtitle: '本儀表板將系外行星樣本重新表述為一個觀測選擇實驗，用以展示光速延遲、平方反比衰減、接收靈敏度與假設發射功率如何把廣泛的候選族群轉換為偏向高門檻案例的可偵測樣本。',
+                radarLink: '返回 3D 訊號雷達',
+                readmeLink: '閱讀方法說明',
+                power: '假設全向發射功率',
+                sensitivity: '接收靈敏度增益',
+                lead: '平庸文明領先時間',
+                epoch: '地球接收年代',
+                geometry: '發射幾何',
+                geometryOptions: ['全向廣播', '中度定向波束 (10^3)', '窄角定向波束 (10^6)'],
+                scatterTitle: '距離-功率相空間',
+                scatterCaption: '每個點代表一個系外行星目標。雙對數結構顯示距離如何迅速將所需發射功率推入極端技術區域。',
+                metricVisible: '同時可偵測目標',
+                metricRadius: '有效偵測半徑',
+                metricTime: '時間可行比例',
+                metricEnergy: '能量可行比例',
+                funnelTitle: 'SETI 門檻漏斗',
+                funnelCaption: '此漏斗將可偵測性視為一連串物理過濾，而非對文明分布的中性普查。',
+                funnelTotal: '全部候選系統',
+                funnelTime: '光速延遲可行',
+                funnelEnergy: '能量門檻可行',
+                funnelBoth: '同時可觀測',
+                heatmapTitle: '平庸文明不可見區',
+                heatmapCaption: '熱圖格點顯示同時通過領先時間與能量過濾的目標比例。暗區不代表沒有文明，而是此偵測方法無法觸及。',
+                heatmapLeft: '領先時間：25 年',
+                heatmapMid: '發射功率：10^12 W 到 10^26 W',
+                heatmapRight: '領先時間：1000 年',
+                distributionTitle: '底層目標集與可觀測樣本',
+                distributionCaption: '比較完整候選集合與通過所選物理門檻的子集合；因此，可觀測樣本並不代表底層機會空間。',
+                jointly: '在目前假設下，{both} / {total} 個候選系統同時通過兩個物理過濾。被排除區域應解讀為觀測上不可及，而不必然是無人居住。',
+                divergence: '可觀測案例集中於能跨越所選門檻的類別；這種分布偏離即為本模型中觀測者選擇偏差的操作性特徵。',
+                filtered: '被目前假設排除',
+                threshold: '所選能量門檻',
+                leadBoundary: '領先時間邊界',
+                underlying: '底層目標集',
+                observable: '過濾後可觀測',
+                xAxis: '距地球距離（光年，對數尺度）',
+                yAxis: '所需全向發射功率（W，對數尺度）',
+                ly: '光年',
+                emitted: '約發射於',
+                yearsShort: '年',
+                classLabels: ['地球級', '卡爾達肖夫第一型', '星際門檻', '卡爾達肖夫第二型+']
+            },
+            en: {
+                pageTitle: 'Selection Bias Lab: Physical Filtering in Interstellar Radio Detection',
+                pageSubtitle: 'This dashboard reframes the exoplanet sample as an observational-selection experiment. It visualizes how light-speed delay, inverse-square attenuation, receiver sensitivity, and assumed transmitter power transform a broad target population into a biased set of detectable high-threshold cases.',
+                radarLink: 'Return to 3D Signal Radar',
+                readmeLink: 'Read Methodological Notes',
+                power: 'Assumed isotropic transmitter power',
+                sensitivity: 'Receiver sensitivity gain',
+                lead: 'Mundane-civilization lead time',
+                epoch: 'Earth receiving epoch',
+                geometry: 'Emission geometry',
+                geometryOptions: ['Isotropic broadcast', 'Moderately directed beam (10^3)', 'Narrow directed beam (10^6)'],
+                scatterTitle: 'Distance-Power Phase Space',
+                scatterCaption: 'Each point is an exoplanet target. The log-log structure reveals that distance rapidly drives required transmission power into extreme technological regimes.',
+                metricVisible: 'jointly detectable targets',
+                metricRadius: 'effective detection radius',
+                metricTime: 'time-feasible fraction',
+                metricEnergy: 'energy-feasible fraction',
+                funnelTitle: 'SETI Threshold Funnel',
+                funnelCaption: 'The funnel treats detectability as a sequence of physical filters rather than as a neutral census of civilizations.',
+                funnelTotal: 'All candidate systems',
+                funnelTime: 'Light-delay feasible',
+                funnelEnergy: 'Energy-threshold feasible',
+                funnelBoth: 'Jointly observable',
+                heatmapTitle: 'Mundane-Civilization Invisibility Region',
+                heatmapCaption: 'Heatmap cells show the fraction of targets that survive both the lead-time and energy filters. Dark regions are not empty of civilizations; they are inaccessible to this detection method.',
+                heatmapLeft: 'Lead time: 25 yr',
+                heatmapMid: 'Transmitter power: 10^12 W to 10^26 W',
+                heatmapRight: 'Lead time: 1000 yr',
+                distributionTitle: 'Underlying Targets vs Observable Sample',
+                distributionCaption: 'A comparison of the full target set with the subset that passes the selected physical thresholds. The observed sample is therefore not representative of the underlying opportunity space.',
+                jointly: 'Under the selected assumptions, {both} of {total} candidate systems survive both physical filters. The excluded region should be interpreted as observationally inaccessible, not necessarily uninhabited.',
+                divergence: 'Observable cases are concentrated in classes able to cross the selected threshold. This divergence is the operational signature of observer selection bias in the model.',
+                filtered: 'Filtered out by selected assumptions',
+                threshold: 'Selected energy threshold',
+                leadBoundary: 'Lead-time boundary',
+                underlying: 'Underlying target set',
+                observable: 'Observable after filters',
+                xAxis: 'Distance from Earth (light-years, log scale)',
+                yAxis: 'Required isotropic transmission power (W, log scale)',
+                ly: 'LY',
+                emitted: 'emitted ~',
+                yearsShort: 'yr',
+                classLabels: ['Earth-scale', 'Kardashev Type I', 'Interstellar threshold', 'Kardashev Type II+']
+            },
+            ja: {
+                pageTitle: '選択バイアス実験室：星間電波検出における物理的フィルタリング',
+                pageSubtitle: 'このダッシュボードは、系外惑星サンプルを観測選択実験として再構成します。光速遅延、逆二乗減衰、受信感度、仮定送信電力が、広い候補集団を高閾値の検出可能事例へ偏らせる過程を可視化します。',
+                radarLink: '3D信号レーダーへ戻る',
+                readmeLink: '方法論ノートを読む',
+                power: '仮定全方向送信電力',
+                sensitivity: '受信感度ゲイン',
+                lead: '平凡文明の先行時間',
+                epoch: '地球の受信年代',
+                geometry: '送信ジオメトリ',
+                geometryOptions: ['全方向ブロードキャスト', '中程度指向ビーム (10^3)', '狭角指向ビーム (10^6)'],
+                scatterTitle: '距離-電力位相空間',
+                scatterCaption: '各点は系外惑星目標を表します。両対数構造は、距離が必要送信電力を急速に極端な技術領域へ押し上げることを示します。',
+                metricVisible: '同時検出可能目標',
+                metricRadius: '有効検出半径',
+                metricTime: '時間的に可能な割合',
+                metricEnergy: 'エネルギー的に可能な割合',
+                funnelTitle: 'SETI 閾値ファネル',
+                funnelCaption: 'このファネルは、検出可能性を文明の中立的な調査ではなく、一連の物理的フィルタとして扱います。',
+                funnelTotal: '全候補システム',
+                funnelTime: '光速遅延で可能',
+                funnelEnergy: 'エネルギー閾値で可能',
+                funnelBoth: '同時に観測可能',
+                heatmapTitle: '平凡文明の不可視領域',
+                heatmapCaption: 'ヒートマップは、先行時間とエネルギーフィルタの両方を通過する目標割合を示します。暗い領域は文明が存在しないのではなく、この検出方法では到達できない領域です。',
+                heatmapLeft: '先行時間：25年',
+                heatmapMid: '送信電力：10^12 W から 10^26 W',
+                heatmapRight: '先行時間：1000年',
+                distributionTitle: '基礎目標集団と観測可能サンプル',
+                distributionCaption: '完全な候補集合と、選択した物理閾値を通過する部分集合を比較します。したがって観測可能サンプルは基礎的な機会空間を代表しません。',
+                jointly: '現在の仮定では、{total} 個中 {both} 個の候補システムが両方の物理フィルタを通過します。除外領域は無人ではなく、観測上到達不能と解釈すべきです。',
+                divergence: '観測可能な事例は、選択した閾値を越えられる分類に集中します。この乖離が、本モデルにおける観測者選択バイアスの操作的特徴です。',
+                filtered: '現在の仮定で除外',
+                threshold: '選択エネルギー閾値',
+                leadBoundary: '先行時間境界',
+                underlying: '基礎目標集団',
+                observable: 'フィルタ後の観測可能',
+                xAxis: '地球からの距離（光年、対数尺度）',
+                yAxis: '必要全方向送信電力（W、対数尺度）',
+                ly: '光年',
+                emitted: '発信年 約',
+                yearsShort: '年',
+                classLabels: ['地球級', 'カルダシェフI型', '星間閾値', 'カルダシェフII型+']
+            }
+        };
+        const POWER_COEFFICIENT = 1.12e11;
+        const classes = [
+            { key: 'earth', max: 1e14, color: '#38bdf8' },
+            { key: 'type1', max: 1e16, color: '#22c55e' },
+            { key: 'interstellar', max: 1e20, color: '#fbbf24' },
+            { key: 'type2', max: Infinity, color: '#f97316' }
+        ];
+
+        const el = {
+            lang: document.getElementById('lang-select'),
+            pageTitle: document.getElementById('page-title'),
+            pageSubtitle: document.getElementById('page-subtitle'),
+            radarLink: document.getElementById('radar-link'),
+            readmeLink: document.getElementById('readme-link'),
+            power: document.getElementById('power-slider'),
+            sensitivity: document.getElementById('sensitivity-slider'),
+            lead: document.getElementById('lead-slider'),
+            epoch: document.getElementById('epoch-slider'),
+            geometry: document.getElementById('geometry-select'),
+            labelPower: document.getElementById('label-power'),
+            labelSensitivity: document.getElementById('label-sensitivity'),
+            labelLead: document.getElementById('label-lead'),
+            labelEpoch: document.getElementById('label-epoch'),
+            labelGeometry: document.getElementById('label-geometry'),
+            powerValue: document.getElementById('power-value'),
+            sensitivityValue: document.getElementById('sensitivity-value'),
+            leadValue: document.getElementById('lead-value'),
+            epochValue: document.getElementById('epoch-value'),
+            geometryValue: document.getElementById('geometry-value'),
+            metricVisible: document.getElementById('metric-visible'),
+            metricRadius: document.getElementById('metric-radius'),
+            metricTime: document.getElementById('metric-time'),
+            metricEnergy: document.getElementById('metric-energy'),
+            metricVisibleLabel: document.getElementById('metric-visible-label'),
+            metricRadiusLabel: document.getElementById('metric-radius-label'),
+            metricTimeLabel: document.getElementById('metric-time-label'),
+            metricEnergyLabel: document.getElementById('metric-energy-label'),
+            scatterTitle: document.getElementById('scatter-title'),
+            scatterCaption: document.getElementById('scatter-caption'),
+            funnelTitle: document.getElementById('funnel-title'),
+            funnelCaption: document.getElementById('funnel-caption'),
+            funnelTotalLabel: document.getElementById('funnel-total-label'),
+            funnelTimeLabel: document.getElementById('funnel-time-label'),
+            funnelEnergyLabel: document.getElementById('funnel-energy-label'),
+            funnelBothLabel: document.getElementById('funnel-both-label'),
+            heatmapTitle: document.getElementById('heatmap-title'),
+            heatmapCaption: document.getElementById('heatmap-caption'),
+            heatmapLeft: document.getElementById('heatmap-left'),
+            heatmapMid: document.getElementById('heatmap-mid'),
+            heatmapRight: document.getElementById('heatmap-right'),
+            distributionTitle: document.getElementById('distribution-title'),
+            distributionCaption: document.getElementById('distribution-caption'),
+            funnelNote: document.getElementById('funnel-note'),
+            distributionNote: document.getElementById('distribution-note')
+        };
+
+        const data = (window.EXOPLANETS_DATA || []).map(item => ({
+            ...item,
+            signal_year_dynamic: 2026 - item.distance_ly
+        }));
+
+        function getClass(power) {
+            return classes.find(item => power <= item.max) || classes[classes.length - 1];
+        }
+
+        function text() {
+            return i18n[currentLang] || i18n.en;
+        }
+
+        function classLabel(index) {
+            return text().classLabels[index];
+        }
+
+        function compactPower(power) {
+            const exponent = Math.log10(power);
+            return `10^${exponent.toFixed(exponent % 1 === 0 ? 0 : 1)} W`;
+        }
+
+        function model() {
+            const transmitter = Math.pow(10, Number(el.power.value));
+            const sensitivity = Math.pow(10, Number(el.sensitivity.value));
+            const beamGain = Math.pow(10, Number(el.geometry.value));
+            const effectivePower = transmitter * sensitivity * beamGain;
+            const radius = Math.sqrt(effectivePower / POWER_COEFFICIENT);
+            return {
+                transmitter,
+                sensitivity,
+                beamGain,
+                effectivePower,
+                radius,
+                lead: Number(el.lead.value),
+                epoch: Number(el.epoch.value)
+            };
+        }
+
+        function passTime(item, m) {
+            return item.distance_ly <= m.lead;
+        }
+
+        function passEnergy(item, m) {
+            return item.required_power_w <= m.effectivePower;
+        }
+
+        function passBoth(item, m) {
+            return passTime(item, m) && passEnergy(item, m);
+        }
+
+        function getCounts(m) {
+            const total = data.length;
+            const time = data.filter(item => passTime(item, m)).length;
+            const energy = data.filter(item => passEnergy(item, m)).length;
+            const both = data.filter(item => passBoth(item, m)).length;
+            return { total, time, energy, both };
+        }
+
+        function classCounts(items) {
+            return classes.map(cls => items.filter(item => getClass(item.required_power_w).key === cls.key).length);
+        }
+
+        function setFunnel(id, count, total) {
+            const fill = document.getElementById(`fill-${id}`);
+            const value = document.getElementById(`count-${id}`);
+            fill.style.width = `${total ? Math.max(2, (count / total) * 100) : 0}%`;
+            value.innerText = count.toLocaleString();
+        }
+
+        const scatterChart = new Chart(document.getElementById('scatter-chart'), {
+            type: 'scatter',
+            data: { datasets: [] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                parsing: false,
+                animation: false,
+                plugins: {
+                    legend: { labels: { color: '#cbd5e1' } },
+                    tooltip: {
+                        callbacks: {
+                            label(context) {
+                                const tx = text();
+                                const p = context.raw.source;
+                                const sent = Math.floor(Number(el.epoch.value) - p.distance_ly);
+                                return `${p.pl_name}: ${p.distance_ly.toFixed(1)} ${tx.ly}, ${compactPower(p.required_power_w)}, ${tx.emitted} ${sent}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'logarithmic',
+                        title: { display: true, text: text().xAxis, color: '#cbd5e1' },
+                        ticks: { color: '#94a3b8' },
+                        grid: { color: 'rgba(148,163,184,0.12)' }
+                    },
+                    y: {
+                        type: 'logarithmic',
+                        title: { display: true, text: text().yAxis, color: '#cbd5e1' },
+                        ticks: { color: '#94a3b8', callback: value => `10^${Math.round(Math.log10(value))}` },
+                        grid: { color: 'rgba(148,163,184,0.12)' }
+                    }
+                }
+            }
+        });
+
+        const distributionChart = new Chart(document.getElementById('distribution-chart'), {
+            type: 'bar',
+            data: {
+                labels: classes.map((item, index) => classLabel(index)),
+                datasets: [
+                    { label: 'Underlying target set', data: [], backgroundColor: 'rgba(148, 163, 184, 0.42)' },
+                    { label: 'Observable after filters', data: [], backgroundColor: classes.map(item => item.color) }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: { labels: { color: '#cbd5e1' } }
+                },
+                scales: {
+                    x: { ticks: { color: '#cbd5e1' }, grid: { display: false } },
+                    y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,0.12)' } }
+                }
+            }
+        });
+
+        function drawHeatmap(currentModel) {
+            const canvas = document.getElementById('heatmap');
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+            canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+
+            const cols = 44;
+            const rows = 30;
+            const cellW = rect.width / cols;
+            const cellH = rect.height / rows;
+
+            for (let y = 0; y < rows; y++) {
+                const logPower = 12 + ((rows - 1 - y) / (rows - 1)) * 14;
+                for (let x = 0; x < cols; x++) {
+                    const lead = 25 + (x / (cols - 1)) * 975;
+                    const effectivePower = Math.pow(10, logPower) * currentModel.sensitivity * currentModel.beamGain;
+                    const visible = data.filter(item => item.distance_ly <= lead && item.required_power_w <= effectivePower).length;
+                    const ratio = visible / data.length;
+                    const hue = 205 - ratio * 155;
+                    const light = 13 + ratio * 48;
+                    ctx.fillStyle = `hsl(${hue}, 82%, ${light}%)`;
+                    ctx.fillRect(x * cellW, y * cellH, Math.ceil(cellW), Math.ceil(cellH));
+                }
+            }
+
+            const markerX = ((currentModel.lead - 25) / 975) * rect.width;
+            const markerY = rect.height - ((Math.log10(currentModel.transmitter) - 12) / 14) * rect.height;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(markerX, 0);
+            ctx.lineTo(markerX, rect.height);
+            ctx.moveTo(0, markerY);
+            ctx.lineTo(rect.width, markerY);
+            ctx.stroke();
+        }
+
+        function updateScatter(m) {
+            const tx = text();
+            const observable = data.filter(item => passBoth(item, m));
+            const hidden = data.filter(item => !passBoth(item, m));
+            const datasets = [
+                {
+                    label: tx.filtered,
+                    data: hidden.map(item => ({ x: item.distance_ly, y: item.required_power_w, source: item })),
+                    pointRadius: 2.2,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: 'rgba(148, 163, 184, 0.35)'
+                },
+                ...classes.map((cls, index) => ({
+                    label: classLabel(index),
+                    data: observable
+                        .filter(item => getClass(item.required_power_w).key === cls.key)
+                        .map(item => ({ x: item.distance_ly, y: item.required_power_w, source: item })),
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: cls.color
+                })),
+                {
+                    label: tx.threshold,
+                    type: 'line',
+                    data: [
+                        { x: 1, y: m.effectivePower },
+                        { x: Math.max(30000, Math.max(...data.map(item => item.distance_ly))), y: m.effectivePower }
+                    ],
+                    borderColor: '#ffffff',
+                    borderDash: [6, 6],
+                    pointRadius: 0,
+                    borderWidth: 1.5
+                },
+                {
+                    label: tx.leadBoundary,
+                    type: 'line',
+                    data: [
+                        { x: m.lead, y: 1e10 },
+                        { x: m.lead, y: 1e27 }
+                    ],
+                    borderColor: '#fbbf24',
+                    borderDash: [3, 5],
+                    pointRadius: 0,
+                    borderWidth: 1.5
+                }
+            ];
+            scatterChart.data.datasets = datasets;
+            scatterChart.update();
+        }
+
+        function applyLanguage(refresh = true) {
+            const tx = text();
+            document.documentElement.lang = currentLang === 'zh' ? 'zh-TW' : currentLang;
+            el.lang.value = currentLang;
+            el.pageTitle.innerText = tx.pageTitle;
+            el.pageSubtitle.innerText = tx.pageSubtitle;
+            el.radarLink.innerText = tx.radarLink;
+            el.readmeLink.innerText = tx.readmeLink;
+            el.labelPower.innerText = tx.power;
+            el.labelSensitivity.innerText = tx.sensitivity;
+            el.labelLead.innerText = tx.lead;
+            el.labelEpoch.innerText = tx.epoch;
+            el.labelGeometry.innerText = tx.geometry;
+            Array.from(el.geometry.options).forEach((option, index) => {
+                option.text = tx.geometryOptions[index];
+            });
+            el.metricVisibleLabel.innerText = tx.metricVisible;
+            el.metricRadiusLabel.innerText = tx.metricRadius;
+            el.metricTimeLabel.innerText = tx.metricTime;
+            el.metricEnergyLabel.innerText = tx.metricEnergy;
+            el.scatterTitle.innerText = tx.scatterTitle;
+            el.scatterCaption.innerText = tx.scatterCaption;
+            el.funnelTitle.innerText = tx.funnelTitle;
+            el.funnelCaption.innerText = tx.funnelCaption;
+            el.funnelTotalLabel.innerText = tx.funnelTotal;
+            el.funnelTimeLabel.innerText = tx.funnelTime;
+            el.funnelEnergyLabel.innerText = tx.funnelEnergy;
+            el.funnelBothLabel.innerText = tx.funnelBoth;
+            el.heatmapTitle.innerText = tx.heatmapTitle;
+            el.heatmapCaption.innerText = tx.heatmapCaption;
+            el.heatmapLeft.innerText = tx.heatmapLeft;
+            el.heatmapMid.innerText = tx.heatmapMid;
+            el.heatmapRight.innerText = tx.heatmapRight;
+            el.distributionTitle.innerText = tx.distributionTitle;
+            el.distributionCaption.innerText = tx.distributionCaption;
+            scatterChart.options.scales.x.title.text = tx.xAxis;
+            scatterChart.options.scales.y.title.text = tx.yAxis;
+            if (refresh) update();
+        }
+
+        function update() {
+            applyLanguage(false);
+            const tx = text();
+            const m = model();
+            const counts = getCounts(m);
+            const observable = data.filter(item => passBoth(item, m));
+
+            el.powerValue.innerText = compactPower(m.transmitter);
+            el.sensitivityValue.innerText = `${m.sensitivity.toLocaleString(undefined, { maximumFractionDigits: 0 })}x`;
+            el.leadValue.innerText = `${m.lead} ${tx.yearsShort}`;
+            el.epochValue.innerText = String(m.epoch);
+            el.geometryValue.innerText = el.geometry.options[el.geometry.selectedIndex].text.replace(/\s*\(.+\)/, '');
+
+            el.metricVisible.innerText = `${counts.both} / ${counts.total}`;
+            el.metricRadius.innerText = `${Math.round(m.radius).toLocaleString()} LY`;
+            el.metricTime.innerText = `${((counts.time / counts.total) * 100).toFixed(1)}%`;
+            el.metricEnergy.innerText = `${((counts.energy / counts.total) * 100).toFixed(1)}%`;
+
+            setFunnel('total', counts.total, counts.total);
+            setFunnel('time', counts.time, counts.total);
+            setFunnel('energy', counts.energy, counts.total);
+            setFunnel('both', counts.both, counts.total);
+
+            el.funnelNote.innerText = tx.jointly
+                .replace('{both}', counts.both.toLocaleString())
+                .replace('{total}', counts.total.toLocaleString());
+            el.distributionNote.innerText = tx.divergence;
+
+            updateScatter(m);
+            distributionChart.data.labels = classes.map((item, index) => classLabel(index));
+            distributionChart.data.datasets[0].label = tx.underlying;
+            distributionChart.data.datasets[1].label = tx.observable;
+            distributionChart.data.datasets[0].data = classCounts(data);
+            distributionChart.data.datasets[1].data = classCounts(observable);
+            distributionChart.update();
+            drawHeatmap(m);
+        }
+
+        function waitForData() {
+            if (!window.EXOPLANETS_DATA || !window.Chart) {
+                setTimeout(waitForData, 80);
+                return;
+            }
+            update();
+        }
+
+        [el.power, el.sensitivity, el.lead, el.epoch, el.geometry].forEach(input => {
+            input.addEventListener('input', update);
+            input.addEventListener('change', update);
+        });
+        el.lang.addEventListener('change', event => {
+            currentLang = event.target.value;
+            localStorage.setItem(LANGUAGE_STORAGE_KEY, currentLang);
+            applyLanguage(true);
+        });
+        window.addEventListener('storage', event => {
+            if (event.key === LANGUAGE_STORAGE_KEY && event.newValue && i18n[event.newValue]) {
+                currentLang = event.newValue;
+                applyLanguage(true);
+            }
+        });
+        window.addEventListener('resize', () => update());
+        applyLanguage(false);
+        waitForData();
+    </script>
+</body>
+</html>
