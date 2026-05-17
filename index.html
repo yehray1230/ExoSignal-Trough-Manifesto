@@ -1041,6 +1041,7 @@
                 const sensitivityGain = Math.pow(10, Number(sensitivitySlider.value));
                 const leadYears = Number(leadSlider.value);
                 const effectivePower = transmitterPower * sensitivityGain;
+                // FAST-baseline conceptual EIRP threshold coefficient (W / ly^2).
                 const radiusLy = Math.sqrt(effectivePower / 1.12e11);
                 return { transmitterPower, sensitivityGain, leadYears, effectivePower, radiusLy };
             }

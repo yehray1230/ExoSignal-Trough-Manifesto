@@ -31,7 +31,10 @@ def fetch_exoplanet_data():
     # signal_year = 2026 - distance_ly
     df['signal_year'] = 2026 - df['distance_ly']
     
+    # Conceptual FAST-baseline EIRP threshold:
     # required_power_w = 1.12 * 10^11 * (distance_ly)^2
+    # This folds receiver sensitivity into one visualization coefficient; it is
+    # not a full radiometer-equation model for a specific FAST observing setup.
     df['required_power_w'] = 1.12e11 * (df['distance_ly'] ** 2)
     
     return df

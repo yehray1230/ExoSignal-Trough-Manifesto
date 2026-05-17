@@ -71,7 +71,13 @@ T_observed = 2026
 
 ## 5. 能量門檻假設 / Energy Threshold
 
-模型使用簡化平方反比關係估算所需有效功率：
+模型使用簡化平方反比關係估算所需等效全向發射功率。若接收端最低可偵測通量門檻為 `F_min`，則：
+
+```text
+P_required = 4πd²F_min
+```
+
+本專案將 `4πF_min` 合併為比例常數 `K`，得到：
 
 ```text
 P_required = K * d^2
@@ -83,6 +89,8 @@ P_required = K * d^2
 P_required = 1.12e11 * distance_ly^2
 ```
 
+這裡的 `1.12e11` 是以 Five-hundred-meter Aperture Spherical radio Telescope（FAST）作為高靈敏度地球接收端參考時，折算出的等效門檻常數。它的功能是提供一個接近現代高靈敏度射電觀測能力的 baseline，使模型能比較不同距離目標所需的等效全向發射功率。
+
 其中 `distance_ly` 是由 NASA Exoplanet Archive 中的 `sy_dist` 欄位換算而來：
 
 ```text
@@ -93,7 +101,27 @@ distance_ly = sy_dist * 3.26156
 
 這個功率模型的重點不是提供精確工程設計，而是展示即使在線性距離增加時，所需功率也會以平方尺度快速上升。遠距目標若仍可被看見，通常意味著發射端具有極高有效功率、波束增益，或其他強化可偵測性的條件。
 
-## 6. 可觀測分布假設 / Observed Distribution
+在射電天文中，接收靈敏度並不是單一固定的「最小可接收功率」。實際偵測能力通常取決於 flux density、SEFD、系統溫度、頻寬、積分時間、訊噪比門檻、偏振數、訊號漂移率與搜尋管線。本模型為了維持視覺化可操作性，將這些因素折算為單一 `K` 值。因此，`P_required` 應理解為 FAST baseline 下的概念性 EIRP 門檻，而非 FAST 在任一特定觀測模式下的完整靈敏度預報。
+
+## 6. FAST 接收端基準 / FAST Receiver Baseline
+
+選用 FAST 作為接收端基準的理由是：FAST 是目前極具代表性的高靈敏度單口徑射電望遠鏡，適合作為「地球現有高階射電偵測能力」的參考點。
+
+本模型中的 FAST baseline 代表：
+
+- 以現代高靈敏度地球射電望遠鏡作為接收端。
+- 將接收端門檻折算為等效通量門檻。
+- 再由平方反比關係轉換為目標端所需的等效全向發射功率。
+
+本模型中的 FAST baseline 不代表：
+
+- FAST 官方所有接收機與頻段的完整性能表。
+- 特定 SETI 觀測計畫的完整 radiometer equation。
+- 對任何單一系外行星目標的正式可偵測性預報。
+
+展示本專案時，建議將此參數描述為「以 FAST 作為代表性高靈敏度接收端所折算出的概念性偵測門檻」，而不是簡化成「FAST 可以接收到的最小能量」。
+
+## 7. 可觀測分布假設 / Observed Distribution
 
 本專案區分兩種分布：
 
@@ -112,7 +140,7 @@ distance_ly = sy_dist * 3.26156
 
 在此框架下，未偵測到普通文明不必然表示普通文明稀少。它也可能表示目前的偵測方法優先讓極端案例進入可觀測樣本。
 
-## 7. 本模型不主張的事項 / Non-Claims
+## 8. 本模型不主張的事項 / Non-Claims
 
 本專案不主張：
 
@@ -123,8 +151,9 @@ distance_ly = sy_dist * 3.26156
 - 所有射電通訊都是全向發射。
 - 地球必然能偵測到先進文明。
 - 目前的簡化功率模型等同完整射電天文儀器模型。
+- FAST baseline 等同 FAST 在所有觀測條件下的固定最低可接收功率。
 
-## 8. 術語對照 / Terminology
+## 9. 術語對照 / Terminology
 
 | English term | 中文建議譯名 |
 |---|---|
@@ -137,8 +166,11 @@ distance_ly = sy_dist * 3.26156
 | underlying distribution | 底層分布 |
 | observable distribution | 可觀測分布 |
 | lead time | 領先時間 |
+| EIRP | 等效全向輻射功率 |
+| SEFD | 系統等效通量密度 |
+| FAST baseline | FAST 接收端基準 |
 
-## 9. 主要解讀主張 / Main Claim
+## 10. 主要解讀主張 / Main Claim
 
 本專案的主要主張是條件式的：
 

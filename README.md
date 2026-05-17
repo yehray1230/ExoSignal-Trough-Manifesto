@@ -45,19 +45,27 @@ T_observed = 2026
 
 ### 2. 能量門檻模型
 
-在簡化全向或等效全向發射的假設下，訊號通量會隨距離平方衰減。模型使用下式作為概念性門檻：
+在簡化全向或等效全向發射的假設下，訊號通量會隨距離平方衰減。若接收端的最低可偵測通量門檻為 `F_min`，則所需等效全向發射功率可寫為：
+
+```text
+P_required = 4πd²F_min
+```
+
+本專案將 `4πF_min` 合併為比例常數 `K`，因此前端模型使用下式作為概念性門檻：
 
 ```text
 P_required = K * d^2
 ```
 
-其中 `P_required` 為所需有效發射功率，`d` 為距離，`K` 是模型中的比例常數。現有資料產生腳本採用：
+其中 `P_required` 為所需等效全向發射功率，`d` 為距離，`K` 是以接收端偵測門檻折算而來的模型常數。現有資料產生腳本採用：
 
 ```text
 P_required = 1.12e11 * distance_ly^2
 ```
 
-此數值不應被解讀為特定天文台的完整儀器模型，而是用於展示距離衰減如何快速提高可偵測門檻。
+此常數以 Five-hundred-meter Aperture Spherical radio Telescope（FAST）作為高靈敏度地球接收端的參考基準，用來代表「現代地球射電觀測可達到的高靈敏度門檻」。不過，它不應被解讀為 FAST 在所有頻寬、積分時間、訊噪比門檻與訊號型態下的完整儀器模型，而是將接收端靈敏度壓縮成單一可視化係數，用於展示距離衰減如何快速提高可偵測門檻。
+
+在射電天文中，接收靈敏度通常以 flux density、Jansky、SEFD、頻寬與積分時間等量描述，而不是只有一個固定的「最小可接收功率」。因此，本專案中的 `1.12e11` 應理解為 FAST baseline 下的等效門檻常數，而非天文台官方靈敏度表的直接替代。
 
 ### 3. 觀測篩選模型
 
@@ -79,6 +87,7 @@ P_required = 1.12e11 * distance_ly^2
 | `distance_ly` | 換算後距離 | light-year | `sy_dist * 3.26156` |
 | `T_emit` | 模型推估發射年份 | year | `T_observed - d` |
 | `P_required` | 所需有效發射功率 | watt | `1.12e11 * d^2` |
+| `K` | FAST baseline 等效門檻常數 | W / ly² | `1.12e11` |
 | `lead_time` | 假想普通文明領先地球年數 | year | 由介面滑桿控制 |
 
 ## 視覺化介面 / Visualization
@@ -127,6 +136,18 @@ https://exoplanetarchive.ipac.caltech.edu/TAP/sync
 
 資料策略的細節請見 [data/README.md](data/README.md)。
 
+## 接收端基準 / Receiver Baseline
+
+本專案選用 FAST 作為接收端靈敏度基準，是因為 FAST 是目前極具代表性的高靈敏度單口徑射電望遠鏡。這個選擇的目的，是讓模型中的能量門檻接近「地球現有高階射電觀測能力」的量級，而不是任意設定一個抽象門檻。
+
+需要注意的是，FAST 的實際偵測能力會依觀測頻段、接收機、系統溫度、頻寬、積分時間、訊號漂移率、偏振處理與搜尋管線而變動。為了維持互動模型簡潔，本專案將這些儀器因素折算為單一比例常數 `K`。因此，畫面上的 `P_required` 應解讀為「在 FAST baseline 偵測門檻下所需的等效全向發射功率」，而不是對特定 FAST 觀測設定的精確預報。
+
+相關背景：
+
+- NASA Exoplanet Archive 將 `sy_dist` 定義為系統距離，單位為 parsec。
+- NRAO 說明射電天文常以 flux density 與 Jansky 表示接收訊號強度。
+- FAST 相關文獻通常以系統溫度、增益、SEFD 或特定 SETI 搜尋的 EIRP 門檻描述靈敏度。
+
 ## 模型限制 / Limitations
 
 本專案目前採用概念性模型，並不包含完整射電天文儀器模擬。以下因素尚未細緻納入：
@@ -137,6 +158,7 @@ https://exoplanetarchive.ipac.caltech.edu/TAP/sync
 - 發射占空比與文明主動發射意圖。
 - 定向波束幾何的詳細建模。
 - 行星適居性、生命發生率或文明壽命的統計模型。
+- FAST 在特定接收機、頻寬、積分時間與搜尋管線下的完整 radiometer equation 校準。
 
 因此，圖中門檻應被視為「物理選擇壓力的方向性示範」，而不是對任一特定目標的觀測預報。
 
