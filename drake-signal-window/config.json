@@ -1,0 +1,58 @@
+{
+  "seed": 42,
+  "observation_year_start": 1800,
+  "observation_year_end": 7000,
+  "year_step": 10,
+  "observation_epoch_model": "continuous",
+  "bl_observation_window_years": 1.0,
+  "monte_carlo_samples": 60000,
+  "monte_carlo": {
+    "enabled": true,
+    "samples": 50,
+    "seed": 42,
+    "target_limit": 100,
+    "year_step": 50,
+    "summary_years": [2026, 2100, 2500, 3000, 5000],
+    "probability_bands": [0.05, 0.25, 0.5, 0.75, 0.95]
+  },
+  "max_catalog_targets": 800,
+  "drake": {
+    "star_formation_rate_per_year": 1.5,
+    "fraction_with_planets": 0.9,
+    "habitable_planets_per_system": 0.2,
+    "fraction_life": 0.25,
+    "fraction_intelligence": 0.08,
+    "fraction_communicative": 0.2
+  },
+  "civilization": {
+    "birth_year_mean": -1500,
+    "birth_year_std": 1800,
+    "development_duration_mean": 4500,
+    "development_duration_std": 900,
+    "timing_model": "normal",
+    "radio_window_years": 650,
+    "radio_window_model": "fixed",
+    "radio_window_std": 180,
+    "min_radio_window_years": 25
+  },
+  "communication": {
+    "max_effective_transmit_power_w": 1.0e18,
+    "power_rolloff_decades": 1.25,
+    "beam_coverage": 0.35,
+    "duty_cycle": 0.5,
+    "frequency_coverage": 0.45
+  },
+  "rigor": {
+    "uncertainty_spread": 0.35,
+    "catalog_selection_bias": 0.4,
+    "assumption_correlation": 0.25
+  },
+  "normal_distribution_scenario": {
+    "birth_year_mean": -1200,
+    "birth_year_std": 2200,
+    "development_duration_mean": 4200,
+    "development_duration_std": 850,
+    "samples": 90000,
+    "histogram_bin_years": 10
+  }
+}

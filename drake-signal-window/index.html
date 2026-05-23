@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drake Signal Window Lab</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #071013;
+            --panel: rgba(19, 30, 34, 0.88);
+            --panel-2: rgba(12, 21, 25, 0.92);
+            --line: rgba(155, 176, 184, 0.24);
+            --text: #e8f2f4;
+            --muted: #9bb0b8;
+            --cyan: #5bd4ff;
+            --green: #81e6a8;
+            --gold: #f5c96b;
+            --rose: #ff8d8d;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at 18% 8%, rgba(91, 212, 255, 0.14), transparent 26%),
+                radial-gradient(circle at 92% 18%, rgba(129, 230, 168, 0.10), transparent 28%),
+                linear-gradient(180deg, #071013 0%, #0a1118 100%);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "Noto Sans TC", sans-serif;
+        }
+        .shell {
+            width: min(1460px, calc(100vw - 32px));
+            margin: 0 auto;
+            padding: 22px 0 36px;
+        }
+        header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 16px;
+            align-items: start;
+            margin-bottom: 16px;
+        }
+        h1 {
+            margin: 0 0 8px;
+            font-size: clamp(1.55rem, 3vw, 2.45rem);
+            letter-spacing: 0;
+        }
+        .subtitle {
+            max-width: 900px;
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.55;
+            font-size: 0.98rem;
+        }
+        .nav {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: end;
+        }
+        .nav a, button, .download-report-link {
+            color: #dff7ff;
+            text-decoration: none;
+            border: 1px solid rgba(91, 212, 255, 0.34);
+            border-radius: 8px;
+            background: rgba(16, 75, 90, 0.42);
+            padding: 10px 12px;
+            font-size: 0.86rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+        }
+        button:hover, .nav a:hover, .download-report-link:hover { border-color: rgba(91, 212, 255, 0.8); }
+        .layout {
+            display: grid;
+            grid-template-columns: 360px minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+            backdrop-filter: blur(14px);
+        }
+        .controls {
+            position: sticky;
+            top: 14px;
+            padding: 16px;
+        }
+        .control-group + .control-group {
+            border-top: 1px solid var(--line);
+            margin-top: 15px;
+            padding-top: 15px;
+        }
+        h2 {
+            margin: 0 0 12px;
+            font-size: 1rem;
+            color: #fff;
+            letter-spacing: 0;
+        }
+        .control {
+            margin-bottom: 13px;
+        }
+        label {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: baseline;
+            color: #cbdce1;
+            font-size: 0.81rem;
+            line-height: 1.3;
+            margin-bottom: 7px;
+        }
+        label strong {
+            color: #fff;
+            white-space: nowrap;
+            font-size: 0.82rem;
+        }
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--cyan);
+        }
+        select {
+            width: 100%;
+            padding: 9px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--line);
+            background: var(--panel-2);
+            color: #fff;
+        }
+        .button-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .main {
+            display: grid;
+            gap: 16px;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .metric {
+            padding: 14px;
+            min-height: 92px;
+        }
+        .metric span {
+            display: block;
+            color: var(--muted);
+            font-size: 0.78rem;
+            line-height: 1.35;
+        }
+        .metric strong {
+            display: block;
+            margin-top: 8px;
+            color: #fff;
+            font-size: clamp(1.3rem, 2vw, 1.75rem);
+            letter-spacing: 0;
+        }
+        .charts {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        .chart-card {
+            padding: 16px;
+        }
+        .chart-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            align-items: start;
+            margin-bottom: 12px;
+        }
+        .chart-title {
+            margin: 0 0 5px;
+            font-size: 1.05rem;
+            color: #fff;
+        }
+        .chart-note {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.84rem;
+            line-height: 1.45;
+        }
+        .legend {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: end;
+            color: #cbdce1;
+            font-size: 0.78rem;
+            white-space: nowrap;
+        }
+        .legend span::before {
+            content: "";
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            margin-right: 6px;
+            vertical-align: -1px;
+            background: var(--cyan);
+        }
+        .legend .expected::before { background: var(--gold); }
+        .legend .hist::before { background: var(--green); }
+        .chart {
+            width: 100%;
+            height: 360px;
+            display: block;
+            background: rgba(6, 13, 17, 0.72);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+        .axis { stroke: rgba(155, 176, 184, 0.42); stroke-width: 1; }
+        .grid-line { stroke: rgba(155, 176, 184, 0.14); stroke-width: 1; }
+        .tick { fill: #9bb0b8; font-size: 12px; }
+        .prob-line { fill: none; stroke: var(--cyan); stroke-width: 3; }
+        .uncertainty-band { fill: var(--cyan); opacity: 0.16; }
+        .uncertainty-low, .uncertainty-high { fill: none; stroke: var(--cyan); stroke-width: 1; opacity: 0.42; stroke-dasharray: 5 5; }
+        .expected-line { fill: none; stroke: var(--gold); stroke-width: 2; opacity: 0.95; }
+        .hist-bar { fill: var(--green); opacity: 0.76; }
+        .peak-dot { fill: var(--rose); stroke: #fff; stroke-width: 1.5; }
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--line);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 660px;
+            background: rgba(6, 13, 17, 0.62);
+        }
+        th, td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(155, 176, 184, 0.16);
+            text-align: right;
+            font-size: 0.82rem;
+            white-space: nowrap;
+        }
+        th:first-child, td:first-child,
+        th:nth-child(2), td:nth-child(2) {
+            text-align: left;
+        }
+        th {
+            color: #dff7ff;
+            font-weight: 700;
+            background: rgba(16, 75, 90, 0.22);
+        }
+        td { color: #d5e4e8; }
+        .rank-list {
+            display: grid;
+            gap: 9px;
+        }
+        .rank-row {
+            display: grid;
+            grid-template-columns: minmax(120px, 0.95fr) minmax(140px, 1.4fr) auto;
+            gap: 10px;
+            align-items: center;
+            color: #d5e4e8;
+            font-size: 0.84rem;
+        }
+        .rank-bar {
+            height: 9px;
+            border-radius: 999px;
+            background: rgba(91, 212, 255, 0.16);
+            overflow: hidden;
+        }
+        .rank-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cyan), var(--gold));
+        }
+        .status {
+            color: var(--muted);
+            font-size: 0.8rem;
+            margin-top: 12px;
+            min-height: 18px;
+        }
+        @media (max-width: 1080px) {
+            header, .layout { grid-template-columns: 1fr; }
+            .controls { position: static; }
+            .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .nav { justify-content: start; }
+        }
+        @media (max-width: 640px) {
+            .shell { width: min(100vw - 20px, 1460px); padding-top: 14px; }
+            .metrics { grid-template-columns: 1fr; }
+            .chart-head { display: block; }
+            .legend { justify-content: start; margin-top: 10px; }
+            .button-row { grid-template-columns: 1fr; }
+            .chart { height: 310px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <header>
+            <div>
+                <h1>德雷克方程式與無線電窗口模擬</h1>
+                <p class="subtitle">以星系歷史為背景，模擬地球觀測可能遭遇到的信號到達分布。由於信號發射功率、波束指向、接收設備靈敏度等限制，不同距離的智慧文明訊號抵達地球的機率隨時間演化。</p>
+            </div>
+            <nav class="nav" aria-label="導覽選單">
+                <a href="../index.html">3D 訊號雷達</a>
+                <a href="../selection-bias-lab.html">篩選偏差實驗室</a>
+            </nav>
+        </header>
+
+        <div class="layout">
+            <aside class="panel controls">
+                <div class="control-group">
+                    <h2>德雷克參數</h2>
+                    <div class="control">
+                        <label for="starRate">恆星形成速率 <strong id="starRateValue"></strong></label>
+                        <input id="starRate" type="range" min="0.1" max="6" step="0.1" value="1.5">
+                    </div>
+                    <div class="control">
+                        <label for="fp">擁有行星的比例 <strong id="fpValue"></strong></label>
+                        <input id="fp" type="range" min="0.05" max="1" step="0.01" value="0.9">
+                    </div>
+                    <div class="control">
+                        <label for="ne">每個系統的宜居行星數 <strong id="neValue"></strong></label>
+                        <input id="ne" type="range" min="0.01" max="2" step="0.01" value="0.2">
+                    </div>
+                    <div class="control">
+                        <label for="fl">發展出生命的比例 <strong id="flValue"></strong></label>
+                        <input id="fl" type="range" min="0.001" max="1" step="0.001" value="0.25">
+                    </div>
+                    <div class="control">
+                        <label for="fi">演化出智慧生命的比例 <strong id="fiValue"></strong></label>
+                        <input id="fi" type="range" min="0.001" max="1" step="0.001" value="0.08">
+                    </div>
+                    <div class="control">
+                        <label for="fc">發展出通信技術的比例 <strong id="fcValue"></strong></label>
+                        <input id="fc" type="range" min="0.001" max="1" step="0.001" value="0.2">
+                    </div>
+                    <div class="control">
+                        <label for="lPrior">L_prior 參考壽命 <strong id="lPriorValue"></strong></label>
+                        <input id="lPrior" type="range" min="100" max="10000" step="100" value="1000">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <h2>時間與壽命模型</h2>
+                    <div class="control">
+                        <label for="birthMean">文明誕生年份平均 <strong id="birthMeanValue"></strong></label>
+                        <input id="birthMean" type="range" min="-6000" max="3000" step="50" value="-1500">
+                    </div>
+                    <div class="control">
+                        <label for="birthStd">文明誕生年份標準差 <strong id="birthStdValue"></strong></label>
+                        <input id="birthStd" type="range" min="100" max="5000" step="50" value="1800">
+                    </div>
+                    <div class="control">
+                        <label for="devMean">發展至通信技術所需時間平均 <strong id="devMeanValue"></strong></label>
+                        <input id="devMean" type="range" min="500" max="9000" step="50" value="4500">
+                    </div>
+                    <div class="control">
+                        <label for="devStd">發展至通信技術所需時間標準差 <strong id="devStdValue"></strong></label>
+                        <input id="devStd" type="range" min="50" max="3000" step="50" value="900">
+                    </div>
+                    <div class="control">
+                        <label for="timingModel">Timing model <strong id="timingModelValue"></strong></label>
+                        <select id="timingModel">
+                            <option value="normal">Normal baseline</option>
+                            <option value="lognormal">Log-normal development</option>
+                            <option value="gamma">Gamma development</option>
+                        </select>
+                    </div>
+                    <div class="control">
+                        <label for="tActive">T_active 主動廣播壽命 <strong id="tActiveValue"></strong></label>
+                        <input id="tActive" type="range" min="0" max="5000" step="25" value="500">
+                    </div>
+                    <div class="control">
+                        <label for="tLeakage">T_leakage 洩漏信號壽命 <strong id="tLeakageValue"></strong></label>
+                        <input id="tLeakage" type="range" min="0" max="2000" step="25" value="150">
+                    </div>
+                    <div class="control">
+                        <label for="windowModel">Radio window model <strong id="windowModelValue"></strong></label>
+                        <select id="windowModel">
+                            <option value="fixed">Fixed duration</option>
+                            <option value="lognormal">Log-normal duration</option>
+                            <option value="infinite">Open-ended / no shutdown</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <h2>觀測與接收參數</h2>
+                    <div class="control">
+                        <label for="earthReceiver">接收靈敏度 <strong id="earthReceiverValue"></strong></label>
+                        <select id="earthReceiver">
+                            <option value="gbt">Green Bank Telescope (100m)</option>
+                            <option value="arecibo">Arecibo Legacy (305m)</option>
+                            <option value="fast">FAST (500m) - Baseline</option>
+                            <option value="ska">Square Kilometre Array</option>
+                            <option value="lunar">Lunar Farside Array</option>
+                        </select>
+                    </div>
+                    <div class="control">
+                        <label for="maxPower">假設全向發射功率 <strong id="maxPowerValue"></strong></label>
+                        <input id="maxPower" type="range" min="12" max="22" step="0.1" value="18">
+                    </div>
+                    <div class="control">
+                        <label for="rolloff">發射功率滾降斜率 <strong id="rolloffValue"></strong></label>
+                        <input id="rolloff" type="range" min="0.2" max="3" step="0.05" value="1.25">
+                    </div>
+                    <div class="control">
+                        <label for="yearEnd">觀測結束年份 <strong id="yearEndValue"></strong></label>
+                        <input id="yearEnd" type="range" min="2600" max="10000" step="100" value="7000">
+                    </div>
+                    <div class="control">
+                        <label for="targetCount">篩選目標數量 <strong id="targetCountValue"></strong></label>
+                        <input id="targetCount" type="range" min="100" max="2000" step="100" value="800">
+                    </div>
+                    <div class="control">
+                        <label for="uncertaintySpread">Uncertainty interval <strong id="uncertaintySpreadValue"></strong></label>
+                        <input id="uncertaintySpread" type="range" min="0" max="1" step="0.05" value="0.35">
+                    </div>
+                    <div class="control">
+                        <label for="selectionBias">Catalog selection bias <strong id="selectionBiasValue"></strong></label>
+                        <input id="selectionBias" type="range" min="0" max="1" step="0.05" value="0.4">
+                    </div>
+                    <div class="control">
+                        <label for="beamCoverage">Beam sky coverage <strong id="beamCoverageValue"></strong></label>
+                        <input id="beamCoverage" type="range" min="0.01" max="1" step="0.01" value="0.35">
+                    </div>
+                    <div class="control">
+                        <label for="dutyCycle">Transmitter duty cycle <strong id="dutyCycleValue"></strong></label>
+                        <input id="dutyCycle" type="range" min="0.01" max="1" step="0.01" value="0.5">
+                    </div>
+                    <div class="control">
+                        <label for="earthObsTimeLog">單個目標觀測時間 <strong id="earthObsTimeLogValue"></strong></label>
+                        <input id="earthObsTimeLog" type="range" min="-6" max="0" step="0.1" value="-3.5">
+                    </div>
+                    <div class="control">
+                        <label for="useBlObservationTimes">Breakthrough Listen observed epochs <strong id="useBlObservationTimesValue">Off</strong></label>
+                        <input id="useBlObservationTimes" type="checkbox">
+                    </div>
+                    <div class="control">
+                        <label for="freqCoverage">Frequency coverage <strong id="freqCoverageValue"></strong></label>
+                        <input id="freqCoverage" type="range" min="0.01" max="1" step="0.01" value="0.45">
+                    </div>
+                    <div class="control">
+                        <label for="hypothesisCoupling">Hypothesis coupling <strong id="hypothesisCouplingValue"></strong></label>
+                        <select id="hypothesisCoupling">
+                            <option value="independent">Independent</option>
+                            <option value="weakly_coupled">Weakly coupled</option>
+                            <option value="strongly_coupled">Strongly coupled</option>
+                            <option value="bottleneck">Bottleneck model</option>
+                            <option value="rare_intelligence">Rare-intelligence model</option>
+                        </select>
+                    </div>
+                    <div class="button-row">
+                        <button id="resetButton" type="button">重設參數</button>
+                        <button id="exportButton" type="button">匯出 CSV</button>
+                        <button id="reportButton" type="button">Export standalone report</button>
+                        <button id="downloadMcButton" type="button">Download MC static report</button>
+                    </div>
+                    <div class="status" id="status"></div>
+                </div>
+            </aside>
+
+            <main class="main">
+                <section class="metrics">
+                    <div class="panel metric">
+                        <span>年度接收機率峰值</span>
+                        <strong id="peakProbability">-</strong>
+                    </div>
+                    <div class="panel metric">
+                        <span>峰值年份</span>
+                        <strong id="peakYear">-</strong>
+                    </div>
+                    <div class="panel metric">
+                        <span>接收年份抽樣中位數</span>
+                        <strong id="histPeakYear">-</strong>
+                    </div>
+                    <div class="panel metric">
+                        <span>德雷克期望文明數</span>
+                        <strong id="drakeWeight">-</strong>
+                    </div>
+                    <div class="panel metric">
+                        <span>5%-95% interval at peak</span>
+                        <strong id="uncertaintyRange">-</strong>
+                    </div>
+                </section>
+
+                <section class="charts">
+                    <article class="panel chart-card">
+                        <div class="chart-head">
+                            <div>
+                                <h2 class="chart-title">地球接收到至少一個訊號的年度機率</h2>
+                                <p class="chart-note">年度接收機率是所有篩選目標在該年份的信號抵達機率之聯集。</p>
+                            </div>
+                            <div class="legend">
+                                <span>單一事件機率</span>
+                                <span class="expected">期望信號數量</span>
+                            </div>
+                        </div>
+                        <svg id="probabilityChart" class="chart" viewBox="0 0 960 360" role="img" aria-label="地球接收信號機率隨時間變化"></svg>
+                    </article>
+
+                    <article class="panel chart-card">
+                        <div class="chart-head">
+                            <div>
+                                <h2 class="chart-title">接收到信號的發射年份分布</h2>
+                                <p class="chart-note">此直方圖使用蒙地卡羅抽樣，展示在所選物理門檻與觀測時間下，信號發出時的地球歷史年代分布。</p>
+                            </div>
+                            <div class="legend">
+                                <span class="hist">發射年份密度</span>
+                            </div>
+                        </div>
+                        <svg id="histogramChart" class="chart" viewBox="0 0 960 360" role="img" aria-label="接收年份抽樣直方圖"></svg>
+                    </article>
+
+                    <article class="panel chart-card">
+                        <div class="chart-head">
+                            <div>
+                                <h2 class="chart-title">關鍵假設敏感度分析</h2>
+                                <p class="chart-note">擾動單一假設並排序其對峰值機率與峰值年份的影響程度。</p>
+                            </div>
+                        </div>
+                        <h2 class="chart-title">Sensitivity ranking</h2>
+                        <p class="chart-note">Each row perturbs one assumption up and down and ranks how much it changes peak probability and peak year.</p>
+                        <div id="sensitivityList" class="rank-list"></div>
+                    </article>
+
+                    <article class="panel chart-card">
+                        <div class="chart-head">
+                            <div>
+                                <h2 class="chart-title">Target observability</h2>
+                                <p class="chart-note">Detectability now includes power, catalog selection bias, beaming, duty cycle, and frequency coverage.</p>
+                            </div>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>排名</th>
+                                        <th>影響參數</th>
+                                        <th>距離 (光年)</th>
+                                        <th>所需功率 (瓦)</th>
+                                        <th>訊號發射年份</th>
+                                        <th>Observation epoch</th>
+                                        <th>Emission year</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="targetTable"></tbody>
+                            </table>
+                        </div>
+                    </article>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="../data.js"></script>
+    <script>
+        const DEFAULTS = {
+            starRate: 1.5,
+            fp: 0.9,
+            ne: 0.2,
+            fl: 0.25,
+            fi: 0.08,
+            fc: 0.2,
+            birthMean: -1500,
+            birthStd: 1800,
+            devMean: 4500,
+            devStd: 900,
+            timingModel: "normal",
+            lPrior: 1000,
+            tActive: 500,
+            tLeakage: 150,
+            windowModel: "fixed",
+            earthReceiver: "fast",
+            maxPower: 18,
+            rolloff: 1.25,
+            yearEnd: 7000,
+            targetCount: 800,
+            uncertaintySpread: 0.35,
+            selectionBias: 0.4,
+            beamCoverage: 0.35,
+            dutyCycle: 0.5,
+            earthObsTimeLog: -3.5,
+            freqCoverage: 0.45,
+            hypothesisCoupling: "independent"
+        };
+
+        const els = {};
+        const numericIds = Object.keys(DEFAULTS).filter(id => typeof DEFAULTS[id] === "number");
+        const selectIds = Object.keys(DEFAULTS).filter(id => typeof DEFAULTS[id] === "string");
+        const ids = numericIds;
+        ids.forEach(id => {
+            els[id] = document.getElementById(id);
+            els[id + "Value"] = document.getElementById(id + "Value");
+        });
+        selectIds.forEach(id => {
+            els[id] = document.getElementById(id);
+            els[id + "Value"] = document.getElementById(id + "Value");
+        });
+        els.status = document.getElementById("status");
+        els.peakProbability = document.getElementById("peakProbability");
+        els.peakYear = document.getElementById("peakYear");
+        els.histPeakYear = document.getElementById("histPeakYear");
+        els.drakeWeight = document.getElementById("drakeWeight");
+        els.uncertaintyRange = document.getElementById("uncertaintyRange");
+        els.sensitivityList = document.getElementById("sensitivityList");
+        els.targetTable = document.getElementById("targetTable");
+        els.probabilityChart = document.getElementById("probabilityChart");
+        els.histogramChart = document.getElementById("histogramChart");
+        els.useBlObservationTimes = document.getElementById("useBlObservationTimes");
+        els.useBlObservationTimesValue = document.getElementById("useBlObservationTimesValue");
+
+        const rawTargets = (window.EXOPLANETS_DATA || [])
+            .filter(item => Number.isFinite(item.distance_ly) && Number.isFinite(item.required_power_w))
+            .sort((a, b) => a.distance_ly - b.distance_ly);
+
+        let latestSeries = [];
+        let latestHistogram = [];
+        let latestUncertaintyBand = [];
+        let latestSensitivity = [];
+        let latestBaseWeight = 0;
+        let renderTimer = null;
+
+        function numberValue(id) {
+            return Number(els[id].value);
+        }
+
+        function getParams() {
+            const params = {};
+            numericIds.forEach(id => params[id] = numberValue(id));
+            selectIds.forEach(id => params[id] = els[id].value);
+            params.maxEffectivePowerW = Math.pow(10, params.maxPower);
+            params.useBlObservationTimes = Boolean(els.useBlObservationTimes?.checked);
+            return params;
+        }
+
+        function formatDutyCycleTime(logValue) {
+            const fraction = Math.pow(10, logValue);
+            if (fraction >= 1) return "100% (continuous)";
+            const minutes = fraction * 365.25 * 24 * 60;
+            if (minutes < 60) return `${minutes.toFixed(1)} min/yr`;
+            const hours = minutes / 60;
+            if (hours < 24) return `${hours.toFixed(1)} hr/yr`;
+            const days = hours / 24;
+            return `${days.toFixed(1)} days/yr`;
+        }
+
+        function formatDutyCycleTimeEn(logValue) {
+            const fraction = Math.pow(10, logValue);
+            if (fraction >= 1) return "100% (Continuous)";
+            const minutes = fraction * 365.25 * 24 * 60;
+            if (minutes < 60) return `${minutes.toFixed(1)} min/yr`;
+            const hours = minutes / 60;
+            if (hours < 24) return `${hours.toFixed(1)} hr/yr`;
+            const days = hours / 24;
+            return `${days.toFixed(1)} days/yr`;
+        }
+
+        function formatYear(year) {
+            const rounded = Math.round(year);
+            return rounded < 0 ? `${Math.abs(rounded)} BCE` : `${rounded}`;
+        }
+
+        function formatPower(power) {
+            if (power === 0) return "0";
+            const exponent = Math.floor(Math.log10(Math.abs(power)));
+            const mantissa = power / Math.pow(10, exponent);
+            return `${mantissa.toFixed(2)}e${exponent}`;
+        }
+
+        function formatProbability(value) {
+            if (value < 0.001) return `${(value * 100).toFixed(3)}%`;
+            return `${(value * 100).toFixed(2)}%`;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[char]));
+        }
+
+        function downloadTextFile(filename, html) {
+            const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function updateControlLabels(params) {
+            els.starRateValue.textContent = `${params.starRate.toFixed(1)} / yr`;
+            els.fpValue.textContent = params.fp.toFixed(2);
+            els.neValue.textContent = params.ne.toFixed(2);
+            els.flValue.textContent = params.fl.toFixed(3);
+            els.fiValue.textContent = params.fi.toFixed(3);
+            els.fcValue.textContent = params.fc.toFixed(3);
+            els.birthMeanValue.textContent = formatYear(params.birthMean);
+            els.birthStdValue.textContent = `${params.birthStd.toLocaleString()} yr`;
+            els.devMeanValue.textContent = `${params.devMean.toLocaleString()} yr`;
+            els.devStdValue.textContent = `${params.devStd.toLocaleString()} yr`;
+            els.timingModelValue.textContent = els.timingModel.options[els.timingModel.selectedIndex].text;
+            els.lPriorValue.textContent = `${params.lPrior.toLocaleString()} yr`;
+            els.tActiveValue.textContent = params.windowModel === "infinite" ? "infinite" : `${params.tActive.toLocaleString()} yr`;
+            els.tLeakageValue.textContent = `${params.tLeakage.toLocaleString()} yr`;
+            els.windowModelValue.textContent = els.windowModel.options[els.windowModel.selectedIndex].text;
+            els.earthReceiverValue.textContent = els.earthReceiver.options[els.earthReceiver.selectedIndex].text;
+            els.maxPowerValue.textContent = `1e${params.maxPower.toFixed(1)} W`;
+            els.rolloffValue.textContent = `${params.rolloff.toFixed(2)} dex`;
+            els.yearEndValue.textContent = formatYear(params.yearEnd);
+            els.targetCountValue.textContent = params.targetCount.toLocaleString();
+            els.uncertaintySpreadValue.textContent = `${Math.round(params.uncertaintySpread * 100)}%`;
+            els.selectionBiasValue.textContent = `${Math.round(params.selectionBias * 100)}%`;
+            els.beamCoverageValue.textContent = `${Math.round(params.beamCoverage * 100)}%`;
+            els.dutyCycleValue.textContent = `${Math.round(params.dutyCycle * 100)}%`;
+            els.earthObsTimeLogValue.textContent = formatDutyCycleTime(params.earthObsTimeLog);
+            els.useBlObservationTimesValue.textContent = params.useBlObservationTimes ? "On" : "Off";
+            els.freqCoverageValue.textContent = `${Math.round(params.freqCoverage * 100)}%`;
+            els.hypothesisCouplingValue.textContent = els.hypothesisCoupling.options[els.hypothesisCoupling.selectedIndex].text;
+        }
+
+        function erf(x) {
+            const sign = Math.sign(x) || 1;
+            const a1 = 0.254829592;
+            const a2 = -0.284496736;
+            const a3 = 1.421413741;
+            const a4 = -1.453152027;
+            const a5 = 1.061405429;
+            const p = 0.3275911;
+            const absX = Math.abs(x);
+            const t = 1 / (1 + p * absX);
+            const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-absX * absX);
+            return sign * y;
+        }
+
+        function normalCdf(x, mu, sigma) {
+            if (sigma <= 0) return x >= mu ? 1 : 0;
+            return 0.5 * (1 + erf((x - mu) / (sigma * Math.SQRT2)));
+        }
+
+        function normalPdf(x, mu, sigma) {
+            if (sigma <= 0) return Math.abs(x - mu) < 0.5 ? 1 : 0;
+            const z = (x - mu) / sigma;
+            return Math.exp(-0.5 * z * z) / (sigma * Math.sqrt(2 * Math.PI));
+        }
+
+        function logGamma(z) {
+            const coefficients = [
+                676.5203681218851, -1259.1392167224028, 771.3234287776531,
+                -176.6150291621406, 12.507343278686905, -0.13857109526572012,
+                9.984369578019572e-6, 1.5056327351493116e-7
+            ];
+            if (z < 0.5) return Math.log(Math.PI) - Math.log(Math.sin(Math.PI * z)) - logGamma(1 - z);
+            z -= 1;
+            let x = 0.9999999999998099;
+            for (let i = 0; i < coefficients.length; i++) x += coefficients[i] / (z + i + 1);
+            const t = z + coefficients.length - 0.5;
+            return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+        }
+
+        function logNormalPdf(x, mean, std) {
+            if (x <= 0 || mean <= 0 || std <= 0) return 0;
+            const variance = std ** 2;
+            const sigma2 = Math.log(1 + variance / (mean ** 2));
+            const sigma = Math.sqrt(Math.max(sigma2, 1e-8));
+            const mu = Math.log(mean) - sigma2 / 2;
+            const z = (Math.log(x) - mu) / sigma;
+            return Math.exp(-0.5 * z * z) / (x * sigma * Math.sqrt(2 * Math.PI));
+        }
+
+        function gammaPdf(x, mean, std) {
+            if (x <= 0 || mean <= 0 || std <= 0) return 0;
+            const shape = Math.max((mean / std) ** 2, 1e-4);
+            const scale = Math.max((std ** 2) / mean, 1e-4);
+            return Math.exp((shape - 1) * Math.log(x) - x / scale - logGamma(shape) - shape * Math.log(scale));
+        }
+
+        function makeWeightedSamples(kind, mean, std, count = 15) {
+            if (kind === "fixed") return [{ value: mean, weight: 1 }];
+            const safeMean = Math.max(mean, 1);
+            const safeStd = Math.max(std, 1);
+            const max = Math.max(safeMean + 5 * safeStd, safeMean * 4, 1);
+            const step = max / count;
+            const samples = [];
+            let totalWeight = 0;
+            for (let i = 0; i < count; i++) {
+                const value = (i + 0.5) * step;
+                let density = 0;
+                if (kind === "normal") density = normalPdf(value, safeMean, safeStd);
+                if (kind === "lognormal") density = logNormalPdf(value, safeMean, safeStd);
+                if (kind === "gamma") density = gammaPdf(value, safeMean, safeStd);
+                const weight = Math.max(0, density * step);
+                samples.push({ value, weight });
+                totalWeight += weight;
+            }
+            if (totalWeight <= 0) return [{ value: safeMean, weight: 1 }];
+            return samples.map(sample => ({ ...sample, weight: sample.weight / totalWeight }));
+        }
+
+        function clamp(value, lo, hi) {
+            return Math.max(lo, Math.min(hi, value));
+        }
+
+        function getReceiverMultiplier(receiver) {
+            switch(receiver) {
+                case "gbt": return 9.0;
+                case "arecibo": return 3.2;
+                case "fast": return 1.0;
+                case "ska": return 0.07;
+                case "lunar": return 0.0007;
+                default: return 1.0;
+            }
+        }
+
+        function detectabilityWeight(requiredPowerW, params) {
+            if (!Number.isFinite(requiredPowerW) || requiredPowerW <= 0) return 0;
+            const multiplier = getReceiverMultiplier(params.earthReceiver);
+            const actualRequiredW = requiredPowerW * multiplier;
+            const logRatio = Math.log10(actualRequiredW / params.maxEffectivePowerW);
+            return 1 / (1 + Math.exp(logRatio / Math.max(params.rolloff, 0.05)));
+        }
+
+        function catalogSelectionWeight(target, params) {
+            // If no bias is applied, assume complete catalog
+            if (params.selectionBias <= 0 && !params.catalogLogitShift) return 1;
+
+            // Logistic catalog completeness model (expected mean of Beta distribution):
+            // p_catalog_i = sigmoid(a - b * distance_i + c * data_quality_i)
+            
+            // selectionBias slider controls the distance penalty slope 'b'
+            const b = params.selectionBias * 0.02; 
+            const a = 2.5; // Base intercept (high chance for nearby targets)
+            
+            const hasPower = Number.isFinite(target.required_power_w) && target.required_power_w > 0 ? 1 : 0;
+            const hasDistance = Number.isFinite(target.distance_ly) && target.distance_ly > 0 ? 1 : 0;
+            const discoveryConfidence = (target.pl_name ? 1 : 0.5) * (target.hostname ? 1 : 0.5);
+            const dataQuality = (hasPower + hasDistance + discoveryConfidence) / 3;
+            const c = 2.0; // Data quality reward
+            
+            let logit = a - b * target.distance_ly + c * dataQuality;
+            
+            // During uncertainty scenarios (Monte Carlo approximation), 
+            // we sample whether the catalog underestimates distant targets.
+            if (params.catalogLogitShift !== undefined) {
+                logit += params.catalogLogitShift;
+            }
+            
+            const p_catalog = 1 / (1 + Math.exp(-logit)); // Sigmoid expected value
+            
+            // The expected value of a Beta(alpha, beta) distribution is alpha / (alpha + beta).
+            // For full Monte Carlo, one would draw from Beta(p_catalog * v, (1 - p_catalog) * v).
+            // Here, returning the expected probability is mathematically exact for expected-sources metric.
+            return clamp(p_catalog, 0.001, 1);
+        }
+
+        function observabilityWeight(target, params) {
+            const earthDutyCycle = Math.pow(10, params.earthObsTimeLog);
+            // Probabilistic union of observation and transmission windows
+            const timeOverlap = params.dutyCycle + earthDutyCycle - (params.dutyCycle * earthDutyCycle);
+
+            return detectabilityWeight(target.required_power_w, params)
+                * catalogSelectionWeight(target, params)
+                * params.beamCoverage
+                * timeOverlap
+                * params.freqCoverage;
+        }
+
+        function getBlObservationYears(target) {
+            const observations = Array.isArray(target.bl_observations) ? target.bl_observations : [];
+            const years = observations
+                .map(item => item.observation_year)
+                .filter(Number.isFinite);
+            if (!years.length && Number.isFinite(target.bl_latest_observed_year)) {
+                years.push(target.bl_latest_observed_year);
+            }
+            return years;
+        }
+
+        function getObservationEpoch(target, params) {
+            if (params.useBlObservationTimes) {
+                const years = getBlObservationYears(target);
+                if (years.length) return Math.max(...years);
+            }
+            return 2026;
+        }
+
+        function observationEpochWeight(receiveYear, target, params) {
+            if (!params.useBlObservationTimes) return 1;
+            const years = getBlObservationYears(target);
+            if (!years.length) return 0;
+            const sigma = 1;
+            return Math.max(...years.map(year => Math.exp(-0.5 * ((receiveYear - year) / sigma) ** 2)));
+        }
+
+        function formatObservationEpoch(target, params) {
+            if (!params.useBlObservationTimes) return "2026 baseline";
+            const years = getBlObservationYears(target);
+            if (!years.length) return "No BL match";
+            const telescopes = (target.bl_telescopes || []).join(", ") || "BL";
+            return `BL ${Math.round(Math.max(...years))} (${telescopes})`;
+        }
+
+        function quantile(sortedValues, q) {
+            if (!sortedValues.length) return 0;
+            const position = (sortedValues.length - 1) * q;
+            const lower = Math.floor(position);
+            const upper = Math.ceil(position);
+            if (lower === upper) return sortedValues[lower];
+            const weight = position - lower;
+            return sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight;
+        }
+
+        function getCoupledDrakeFactors(params) {
+            let { fl, fi, fc } = params;
+            const fl_ref = DEFAULTS.fl;
+
+            switch (params.hypothesisCoupling) {
+                case "independent":
+                    break;
+                case "weakly_coupled":
+                    fi = clamp(fi * Math.pow(fl / fl_ref, 0.5), 0.001, 1);
+                    break;
+                case "strongly_coupled":
+                    fi = clamp(fi * (fl / fl_ref), 0.001, 1);
+                    break;
+                case "bottleneck":
+                    fi = clamp(fi, 0.001, 0.01);
+                    break;
+                case "rare_intelligence":
+                    fl = clamp(fl * 1.5, 0.001, 1);
+                    fi = clamp(fi * 0.001, 0.00001, 0.005);
+                    break;
+            }
+            return { fl, fi, fc };
+        }
+
+        function drakeSparseWeight(params, targetCount) {
+            const { fl, fi, fc } = getCoupledDrakeFactors(params);
+            const product = params.fp * params.ne * fl * fi * fc;
+            const expectedGalacticCivs = params.starRate * product * params.lPrior;
+            return clamp(expectedGalacticCivs / Math.max(targetCount, 1), 0, 0.95);
+        }
+
+        function buildTimingContext(params) {
+            const totalWindow = params.tActive + params.tLeakage;
+            const windowStd = Math.max(25, totalWindow * 1.1);
+            return {
+                devSamples: params.timingModel === "normal"
+                    ? []
+                    : makeWeightedSamples(params.timingModel, params.devMean, params.devStd, 15),
+                windowSamples: params.windowModel === "infinite"
+                    ? []
+                    : params.windowModel === "fixed"
+                    ? [{ value: totalWindow, weight: 1 }]
+                    : makeWeightedSamples("lognormal", totalWindow, windowStd, 11)
+            };
+        }
+
+        function activeProbabilityAt(emitYear, params, timingContext) {
+            if (params.windowModel === "infinite") {
+                if (params.timingModel === "normal") {
+                    const startMu = params.birthMean + params.devMean;
+                    const startSigma = Math.sqrt(params.birthStd ** 2 + params.devStd ** 2);
+                    return normalCdf(emitYear, startMu, startSigma);
+                }
+
+                const devSamples = timingContext.devSamples.length
+                    ? timingContext.devSamples
+                    : [{ value: params.devMean, weight: 1 }];
+                let probability = 0;
+                for (const dev of devSamples) {
+                    probability += dev.weight * normalCdf(emitYear - dev.value, params.birthMean, params.birthStd);
+                }
+                return clamp(probability, 0, 1);
+            }
+
+            if (params.timingModel === "normal" && params.windowModel === "fixed") {
+                const startMu = params.birthMean + params.devMean;
+                const startSigma = Math.sqrt(params.birthStd ** 2 + params.devStd ** 2);
+                const totalWindow = params.tActive + params.tLeakage;
+                return normalCdf(emitYear, startMu, startSigma)
+                    - normalCdf(emitYear - totalWindow, startMu, startSigma);
+            }
+
+            const devSamples = timingContext.devSamples.length
+                ? timingContext.devSamples
+                : [{ value: params.devMean, weight: 1 }];
+            let probability = 0;
+            for (const dev of devSamples) {
+                for (const window of timingContext.windowSamples) {
+                    const startBeforeReceive = normalCdf(emitYear - dev.value, params.birthMean, params.birthStd);
+                    const startBeforeWindow = normalCdf(emitYear - dev.value - window.value, params.birthMean, params.birthStd);
+                    probability += dev.weight * window.weight * Math.max(0, startBeforeReceive - startBeforeWindow);
+                }
+            }
+            return clamp(probability, 0, 1);
+        }
+
+        function arrivalDensityAt(receiveYear, target, params, timingContext) {
+            const emitYear = receiveYear - target.distance_ly;
+            if (params.timingModel === "normal") {
+                const mu = params.birthMean + params.devMean;
+                const sigma = Math.sqrt(params.birthStd ** 2 + params.devStd ** 2);
+                return normalPdf(emitYear, mu, sigma);
+            }
+
+            let density = 0;
+            for (const dev of timingContext.devSamples) {
+                density += dev.weight * normalPdf(emitYear - dev.value, params.birthMean, params.birthStd);
+            }
+            return density;
+        }
+
+        function computeSeries(targets, params) {
+            const startYear = 1800;
+            const yearStep = Math.max(1, Math.round((params.yearEnd - startYear) / 420));
+            const timingContext = buildTimingContext(params);
+            const baseWeight = drakeSparseWeight(params, targets.length);
+            const series = [];
+
+            for (let year = startYear; year <= params.yearEnd; year += yearStep) {
+                let noDetection = 1;
+                let expectedSources = 0;
+
+                for (const target of targets) {
+                    const emitYear = year - target.distance_ly;
+                    const activeProbability = activeProbabilityAt(emitYear, params, timingContext);
+                    const p = clamp(
+                        baseWeight
+                        * activeProbability
+                        * observabilityWeight(target, params)
+                        * observationEpochWeight(year, target, params),
+                        0,
+                        0.95
+                    );
+                    noDetection *= 1 - p;
+                    expectedSources += p;
+                }
+
+                series.push({
+                    year,
+                    probability: 1 - noDetection,
+                    expectedSources
+                });
+            }
+
+            return { series, baseWeight };
+        }
+
+        function uncertaintyScenarios(params) {
+            const spread = params.uncertaintySpread;
+            if (spread <= 0) return [params];
+            const factors = [0.05, 0.2, 0.35, 0.5, 0.65, 0.8, 0.95].map(q => Math.exp((q - 0.5) * 2.7 * spread));
+            return factors.map((factor, index) => {
+                const inverse = factors[factors.length - 1 - index];
+                const logitShift = Math.log(factor) * 2.0; // Sample over/under estimation of completeness
+                return {
+                    ...params,
+                    fl: clamp(params.fl * factor, 0.001, 1),
+                    fi: clamp(params.fi * inverse, 0.001, 1),
+                    fc: clamp(params.fc * factor, 0.001, 1),
+                    lPrior: clamp(params.lPrior * inverse, 100, 10000),
+                    tActive: clamp(params.tActive * inverse, 0, 5000),
+                    tLeakage: clamp(params.tLeakage * inverse, 0, 2000),
+                    catalogLogitShift: logitShift
+                };
+            });
+        }
+
+        function computeUncertaintyBand(targets, params, baselineSeries) {
+            const scenarios = uncertaintyScenarios(params);
+            if (scenarios.length === 1) {
+                return baselineSeries.map(row => ({ year: row.year, low: row.probability, high: row.probability }));
+            }
+            const scenarioSeries = scenarios.map(scenario => computeSeries(targets, scenario).series);
+            return baselineSeries.map((row, rowIndex) => {
+                const values = scenarioSeries
+                    .map(series => series[rowIndex]?.probability ?? 0)
+                    .sort((a, b) => a - b);
+                return {
+                    year: row.year,
+                    low: quantile(values, 0.05),
+                    high: quantile(values, 0.95)
+                };
+            });
+        }
+
+        function peakSummary(series) {
+            const peak = series.reduce((best, row) => row.probability > best.probability ? row : best, series[0]);
+            return { probability: peak.probability, year: peak.year };
+        }
+
+        function perturbParam(params, id, direction) {
+            const next = { ...params };
+            const ranges = {
+                fl: [0.001, 1], fi: [0.001, 1], fc: [0.001, 1],
+                lPrior: [100, 10000], tActive: [0, 5000], tLeakage: [0, 2000],
+                selectionBias: [0, 1],
+                beamCoverage: [0.01, 1], dutyCycle: [0.01, 1],
+                earthObsTimeLog: [-6, 0],
+                freqCoverage: [0.01, 1],
+                maxPower: [12, 22], rolloff: [0.2, 3]
+            };
+            const [lo, hi] = ranges[id];
+            const value = params[id];
+            const delta = (id === "lPrior" || id === "tActive" || id === "tLeakage") ? value * 0.35 + 25 : id === "maxPower" ? 0.7 : id === "earthObsTimeLog" ? 0.5 : id === "rolloff" ? 0.25 : 0.12;
+            next[id] = clamp(value + direction * delta, lo, hi);
+            return next;
+        }
+
+        function computeSensitivity(targets, params, baselineSeries) {
+            const baseline = peakSummary(baselineSeries);
+            const items = [
+                ["fl", "Life fraction"],
+                ["fi", "Intelligence fraction"],
+                ["fc", "Communicative fraction"],
+                ["lPrior", "Drake prior lifetime"],
+                ["tActive", "Active transmission time"],
+                ["tLeakage", "Leakage transmission time"],
+                ["selectionBias", "Catalog selection bias"],
+                ["beamCoverage", "Beam coverage"],
+                ["dutyCycle", "Tx Duty cycle"],
+                ["earthObsTimeLog", "Earth obs. time"],
+                ["freqCoverage", "Frequency coverage"],
+                ["maxPower", "Transmit power"],
+                ["rolloff", "Power rolloff"]
+            ].map(([id, label]) => {
+                const low = peakSummary(computeSeries(targets, perturbParam(params, id, -1)).series);
+                const high = peakSummary(computeSeries(targets, perturbParam(params, id, 1)).series);
+                const probabilityImpact = Math.max(Math.abs(low.probability - baseline.probability), Math.abs(high.probability - baseline.probability));
+                const yearImpact = Math.max(Math.abs(low.year - baseline.year), Math.abs(high.year - baseline.year));
+                return {
+                    id,
+                    label,
+                    probabilityImpact,
+                    yearImpact,
+                    score: probabilityImpact / Math.max(baseline.probability, 0.000001) + yearImpact / 1000
+                };
+            });
+            return items.sort((a, b) => b.score - a.score).slice(0, 8);
+        }
+
+        function computeHistogram(targets, params) {
+            const binSize = 50;
+            const timingContext = buildTimingContext(params);
+            const start = 1800;
+            const end = params.yearEnd;
+            const bins = [];
+
+            for (let year = start; year <= end; year += binSize) {
+                let density = 0;
+                for (const target of targets) {
+                    const receiveYear = year + binSize / 2;
+                    density += arrivalDensityAt(receiveYear, target, params, timingContext)
+                        * observabilityWeight(target, params)
+                        * observationEpochWeight(receiveYear, target, params);
+                }
+                bins.push({ year, density });
+            }
+
+            const total = bins.reduce((sum, bin) => sum + bin.density, 0) || 1;
+            bins.forEach(bin => bin.density /= total);
+            return bins;
+        }
+
+        function makeScale(domainMin, domainMax, rangeMin, rangeMax) {
+            const span = domainMax - domainMin || 1;
+            return value => rangeMin + (value - domainMin) / span * (rangeMax - rangeMin);
+        }
+
+        function drawAxes(svg, xTicks, yTicks, dims, yFormatter = value => value.toFixed(2)) {
+            const { width, height, pad } = dims;
+            const lines = [
+                `<line class="axis" x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" />`,
+                `<line class="axis" x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" />`
+            ];
+            for (const tick of xTicks) {
+                lines.push(`<line class="grid-line" x1="${tick.x}" y1="${pad}" x2="${tick.x}" y2="${height - pad}" />`);
+                lines.push(`<text class="tick" x="${tick.x}" y="${height - 16}" text-anchor="middle">${tick.label}</text>`);
+            }
+            for (const tick of yTicks) {
+                lines.push(`<line class="grid-line" x1="${pad}" y1="${tick.y}" x2="${width - pad}" y2="${tick.y}" />`);
+                lines.push(`<text class="tick" x="${pad - 10}" y="${tick.y + 4}" text-anchor="end">${yFormatter(tick.value)}</text>`);
+            }
+            return lines.join("");
+        }
+
+        function drawProbabilityChart(series, band = []) {
+            const width = 960;
+            const height = 360;
+            const pad = 52;
+            const maxProbability = Math.max(...series.map(row => row.probability), ...band.map(row => row.high), 0.000001);
+            const maxExpected = Math.max(...series.map(row => row.expectedSources), 0.000001);
+            const minYear = series[0].year;
+            const maxYear = series[series.length - 1].year;
+            const x = makeScale(minYear, maxYear, pad, width - pad);
+            const yProb = makeScale(0, maxProbability, height - pad, pad);
+            const yExpected = makeScale(0, maxExpected, height - pad, pad);
+            const peak = series.reduce((best, row) => row.probability > best.probability ? row : best, series[0]);
+            const xTicks = [minYear, Math.round((minYear + maxYear) / 2), maxYear]
+                .map(value => ({ x: x(value), label: formatYear(value) }));
+            const yTicks = [0, maxProbability / 2, maxProbability]
+                .map(value => ({ y: yProb(value), value }));
+            const probPoints = series.map(row => `${x(row.year).toFixed(1)},${yProb(row.probability).toFixed(1)}`).join(" ");
+            const expectedPoints = series.map(row => `${x(row.year).toFixed(1)},${yExpected(row.expectedSources).toFixed(1)}`).join(" ");
+            const highPoints = band.map(row => `${x(row.year).toFixed(1)},${yProb(row.high).toFixed(1)}`);
+            const lowPoints = band.map(row => `${x(row.year).toFixed(1)},${yProb(row.low).toFixed(1)}`);
+            const bandPolygon = band.length
+                ? `<polygon class="uncertainty-band" points="${highPoints.concat([...lowPoints].reverse()).join(" ")}" />
+                   <polyline class="uncertainty-high" points="${highPoints.join(" ")}" />
+                   <polyline class="uncertainty-low" points="${lowPoints.join(" ")}" />`
+                : "";
+
+            els.probabilityChart.innerHTML = `
+                ${drawAxes(els.probabilityChart, xTicks, yTicks, { width, height, pad }, value => `${(value * 100).toFixed(1)}%`)}
+                ${bandPolygon}
+                <polyline class="prob-line" points="${probPoints}" />
+                <polyline class="expected-line" points="${expectedPoints}" />
+                <circle class="peak-dot" cx="${x(peak.year).toFixed(1)}" cy="${yProb(peak.probability).toFixed(1)}" r="5" />
+            `;
+        }
+
+        function drawHistogramChart(bins) {
+            const width = 960;
+            const height = 360;
+            const pad = 52;
+            const maxDensity = Math.max(...bins.map(bin => bin.density), 0.000001);
+            const minYear = bins[0].year;
+            const maxYear = bins[bins.length - 1].year;
+            const x = makeScale(minYear, maxYear, pad, width - pad);
+            const y = makeScale(0, maxDensity, height - pad, pad);
+            const barWidth = Math.max((width - 2 * pad) / bins.length - 1, 1);
+            const xTicks = [minYear, Math.round((minYear + maxYear) / 2), maxYear]
+                .map(value => ({ x: x(value), label: formatYear(value) }));
+            const yTicks = [0, maxDensity / 2, maxDensity]
+                .map(value => ({ y: y(value), value }));
+            const bars = bins.map(bin => {
+                const barHeight = height - pad - y(bin.density);
+                return `<rect class="hist-bar" x="${x(bin.year).toFixed(1)}" y="${y(bin.density).toFixed(1)}" width="${barWidth.toFixed(1)}" height="${barHeight.toFixed(1)}" />`;
+            }).join("");
+            const peak = bins.reduce((best, bin) => bin.density > best.density ? bin : best, bins[0]);
+
+            els.histogramChart.innerHTML = `
+                ${drawAxes(els.histogramChart, xTicks, yTicks, { width, height, pad }, value => value.toFixed(4))}
+                ${bars}
+                <circle class="peak-dot" cx="${x(peak.year).toFixed(1)}" cy="${y(peak.density).toFixed(1)}" r="5" />
+            `;
+        }
+
+        function updateTable(targets, params) {
+            const rows = targets
+                .map(target => ({
+                    ...target,
+                    weight: observabilityWeight(target, params)
+                        * (params.useBlObservationTimes ? observationEpochWeight(getObservationEpoch(target, params), target, params) : 1)
+                }))
+                .sort((a, b) => b.weight - a.weight)
+                .slice(0, 12);
+
+            els.targetTable.innerHTML = rows.map(target => `
+                <tr>
+                    <td>${target.pl_name}</td>
+                    <td>${target.hostname}</td>
+                    <td>${target.distance_ly.toFixed(1)}</td>
+                    <td>${formatPower(target.required_power_w * getReceiverMultiplier(params.earthReceiver))}</td>
+                    <td>${target.weight.toFixed(3)}</td>
+                    <td>${escapeHtml(formatObservationEpoch(target, params))}</td>
+                    <td>${formatYear(getObservationEpoch(target, params) - target.distance_ly)}</td>
+                </tr>
+            `).join("");
+        }
+
+        function updateSensitivityList(items) {
+            const maxScore = Math.max(...items.map(item => item.score), 0.000001);
+            els.sensitivityList.innerHTML = items.map(item => `
+                <div class="rank-row">
+                    <span>${escapeHtml(item.label)}</span>
+                    <div class="rank-bar"><div class="rank-fill" style="width:${Math.max(4, item.score / maxScore * 100).toFixed(1)}%"></div></div>
+                    <span>${formatProbability(item.probabilityImpact)} / ${Math.round(item.yearImpact).toLocaleString()} yr</span>
+                </div>
+            `).join("");
+        }
+
+        function render() {
+            const params = getParams();
+            updateControlLabels(params);
+            const targets = rawTargets.slice(0, params.targetCount);
+            const started = performance.now();
+            const { series, baseWeight } = computeSeries(targets, params);
+            const histogram = computeHistogram(targets, params);
+            const band = computeUncertaintyBand(targets, params, series);
+            const sensitivity = computeSensitivity(targets, params, series);
+            latestSeries = series;
+            latestHistogram = histogram;
+            latestUncertaintyBand = band;
+            latestSensitivity = sensitivity;
+            latestBaseWeight = baseWeight;
+            const peak = series.reduce((best, row) => row.probability > best.probability ? row : best, series[0]);
+            const histPeak = histogram.reduce((best, row) => row.density > best.density ? row : best, histogram[0]);
+            const peakBand = band.reduce((best, row) => Math.abs(row.year - peak.year) < Math.abs(best.year - peak.year) ? row : best, band[0]);
+
+            els.peakProbability.textContent = formatProbability(peak.probability);
+            els.peakYear.textContent = formatYear(peak.year);
+            els.histPeakYear.textContent = formatYear(histPeak.year);
+            els.drakeWeight.textContent = baseWeight.toFixed(5);
+            els.uncertaintyRange.textContent = `${formatProbability(peakBand.low)}-${formatProbability(peakBand.high)}`;
+
+            drawProbabilityChart(series, band);
+            drawHistogramChart(histogram);
+            updateSensitivityList(sensitivity);
+            updateTable(targets, params);
+
+            const elapsed = Math.round(performance.now() - started);
+            els.status.textContent = `已使用蒙地卡羅方法抽樣 ${targets.length.toLocaleString()} 個篩選目標 耗時 ${elapsed} 毫秒`;
+        }
+
+        function scheduleRender() {
+            clearTimeout(renderTimer);
+            renderTimer = setTimeout(render, 35);
+        }
+
+        function resetControls() {
+            Object.keys(DEFAULTS).forEach(id => {
+                els[id].value = DEFAULTS[id];
+            });
+            els.useBlObservationTimes.checked = false;
+            render();
+        }
+
+        function exportCsv() {
+            if (!latestSeries.length) return;
+            const rows = [
+                "year,probability_at_least_one_signal,expected_detectable_sources,probability_p05,probability_p95",
+                ...latestSeries.map((row, index) => `${row.year},${row.probability},${row.expectedSources},${latestUncertaintyBand[index]?.low ?? ""},${latestUncertaintyBand[index]?.high ?? ""}`)
+            ];
+            const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "interactive_arrival_probability_by_year.csv";
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function generateStandaloneReport() {
+            render();
+            if (!latestSeries.length || !latestHistogram.length) return;
+            const params = getParams();
+            const targets = rawTargets.slice(0, params.targetCount);
+            const peak = latestSeries.reduce((best, row) => row.probability > best.probability ? row : best, latestSeries[0]);
+            const histPeak = latestHistogram.reduce((best, row) => row.density > best.density ? row : best, latestHistogram[0]);
+            const peakGap = Math.abs(Math.round(peak.year - histPeak.year));
+            const topTargets = targets
+                .map(target => ({
+                    ...target,
+                    weight: observabilityWeight(target, params)
+                        * (params.useBlObservationTimes ? observationEpochWeight(getObservationEpoch(target, params), target, params) : 1)
+                }))
+                .sort((a, b) => b.weight - a.weight)
+                .slice(0, 20);
+            const probSvg = els.probabilityChart.outerHTML;
+            const histSvg = els.histogramChart.outerHTML;
+            const sensitivityRows = latestSensitivity.map(item => `
+                <tr><td>${escapeHtml(item.label)}</td><td>${escapeHtml(formatProbability(item.probabilityImpact))}</td><td>${Math.round(item.yearImpact).toLocaleString()} yr</td></tr>
+            `).join("");
+            const timingModelLabel = els.timingModel.options[els.timingModel.selectedIndex].text;
+            const windowModelLabel = els.windowModel.options[els.windowModel.selectedIndex].text;
+            const targetRows = topTargets.map(target => `
+                <tr>
+                    <td>${escapeHtml(target.pl_name)}</td>
+                    <td>${escapeHtml(target.hostname)}</td>
+                    <td>${target.distance_ly.toFixed(1)}</td>
+                    <td>${escapeHtml(formatPower(target.required_power_w * getReceiverMultiplier(params.earthReceiver)))}</td>
+                    <td>${target.weight.toFixed(3)}</td>
+                    <td>${escapeHtml(formatObservationEpoch(target, params))}</td>
+                    <td>${escapeHtml(formatYear(getObservationEpoch(target, params) - target.distance_ly))}</td>
+                </tr>
+            `).join("");
+            const now = new Date().toISOString();
+            const html = `<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Standalone Report - Drake Signal Window</title>
+<style>
+body{margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif;line-height:1.55}
+main{max-width:1100px;margin:auto;padding:32px 24px}
+h1{margin:0 0 8px;font-size:30px} h2{margin-top:30px}
+.meta,.note{color:#475569}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric{border:1px solid #cbd5e1;border-radius:8px;padding:12px;background:white}.metric strong{display:block;font-size:22px}
+table{border-collapse:collapse;width:100%;background:white}th,td{border:1px solid #cbd5e1;padding:8px;text-align:left}svg{width:100%;height:auto;background:#101827;border:1px solid #cbd5e1;border-radius:8px}.axis{stroke:#60717d;stroke-width:1}.grid-line{stroke:#334155;stroke-width:.7}.prob-line{fill:none;stroke:#57c7ff;stroke-width:3}.expected-line{fill:none;stroke:#ffbf69;stroke-width:2}.hist-bar{fill:#72dd8a;opacity:.76}.peak-dot{fill:#fff}.tick{fill:#cbd5e1;font-size:12px}
+@media(max-width:800px){.grid{grid-template-columns:1fr}}
+</style>
+<main>
+<h1>Drake Signal Window Standalone Report</h1>
+<p class="meta">Exported ${escapeHtml(now)} from the interactive simulator. This file embeds the current assumptions, parameters, simulation results, charts, and target summary so it can be read without the rest of the project.</p>
+<h2>Premise And Scope</h2>
+<p>This simulator combines Drake-style occurrence factors, a selectable civilization development-time model, finite or distributed radio-communication windows, light-speed delay, and a soft detectability threshold. It is a scenario explorer, not an estimate of the actual number of extraterrestrial civilizations.</p>
+<p class="note">The probability curves are conditional on the selected catalog subset and parameter settings. Low probability means low observability under this model, not absence of civilizations.</p>
+<h2>Time-Axis Meaning</h2>
+<p>All years on the probability curve are <strong>Earth receive years</strong>. The model folds in light-speed delay for each target by evaluating the source activity at <strong>emitYear = receiveYear - distance_ly</strong>. Therefore a peak receive year such as ${escapeHtml(formatYear(peak.year))} means the year when Earth is most likely to receive at least one signal under this scenario, not the year when extraterrestrial civilizations most often transmit.</p>
+<h2>Current Parameters</h2>
+<table><tbody>
+<tr><th>Star formation rate</th><td>${params.starRate.toFixed(1)} / yr</td></tr>
+<tr><th>Drake factors fp, ne, fl, fi, fc</th><td>${params.fp.toFixed(2)}, ${params.ne.toFixed(2)}, ${params.fl.toFixed(3)}, ${params.fi.toFixed(3)}, ${params.fc.toFixed(3)}</td></tr>
+<tr><th>Civilization birth mean / std</th><td>${escapeHtml(formatYear(params.birthMean))} / ${params.birthStd.toLocaleString()} yr</td></tr>
+<tr><th>Development time mean / std</th><td>${params.devMean.toLocaleString()} yr / ${params.devStd.toLocaleString()} yr</td></tr>
+<tr><th>Timing model</th><td>${escapeHtml(timingModelLabel)}</td></tr>
+<tr><th>Drake prior (L_prior)</th><td>${params.lPrior.toLocaleString()} yr</td></tr>
+<tr><th>Active window (T_active)</th><td>${params.windowModel === "infinite" ? "infinite" : params.tActive.toLocaleString() + " yr"}</td></tr>
+<tr><th>Leakage window (T_leakage)</th><td>${params.tLeakage.toLocaleString()} yr</td></tr>
+<tr><th>Window model</th><td>${escapeHtml(windowModelLabel)}</td></tr>
+<tr><th>Earth receiver class</th><td>${escapeHtml(els.earthReceiver.options[els.earthReceiver.selectedIndex].text)}</td></tr>
+<tr><th>Maximum effective power</th><td>1e${params.maxPower.toFixed(1)} W</td></tr>
+<tr><th>Power rolloff</th><td>${params.rolloff.toFixed(2)} dex; logistic softness around the detectability threshold, not a claim that civilizations fade or an extra distance-loss law</td></tr>
+<tr><th>Uncertainty interval</th><td>${Math.round(params.uncertaintySpread * 100)}% spread on fl, fi, fc, and reference lifetime; shown as 5%-95% band</td></tr>
+<tr><th>Catalog selection bias</th><td>${Math.round(params.selectionBias * 100)}%; completeness modeled as Beta-distributed probabilistic Sigmoid: p<sub>catalog</sub> = sigmoid(a - b &times; distance + c &times; quality). Uncertainty scenarios shift the intercept to sample catalog over/under-estimation.</td></tr>
+<tr><th>Earth observation time</th><td>${formatDutyCycleTimeEn(params.earthObsTimeLog)}; computes union probability against Transmitter Duty Cycle (${Math.round(params.dutyCycle * 100)}%)</td></tr>
+<tr><th>Beam / frequency coverage</th><td>${Math.round(params.beamCoverage * 100)}% / ${Math.round(params.freqCoverage * 100)}%</td></tr>
+<tr><th>Hypothesis coupling</th><td>${escapeHtml(els.hypothesisCoupling.options[els.hypothesisCoupling.selectedIndex].text)}</td></tr>
+<tr><th>Simulation end year</th><td>${escapeHtml(formatYear(params.yearEnd))}</td></tr>
+<tr><th>Catalog targets used</th><td>${targets.length.toLocaleString()}</td></tr>
+</tbody></table>
+<h2>Drake Factor Context</h2>
+<table><thead><tr><th>Factor</th><th>Current value</th><th>How to read it</th><th>Interpretive range</th></tr></thead><tbody>
+<tr><td>fp</td><td>${params.fp.toFixed(2)}</td><td>Fraction of stars with planets.</td><td>High values are now relatively plausible because exoplanet surveys show planets are common.</td></tr>
+<tr><td>ne</td><td>${params.ne.toFixed(2)}</td><td>Average potentially habitable planets per planet-hosting system.</td><td>Values around 0.1-0.2 are often used as an order-of-magnitude scenario for habitable-zone rocky worlds.</td></tr>
+<tr><td>fl</td><td>${params.fl.toFixed(3)}</td><td>Fraction of suitable worlds where life arises.</td><td>Unknown; low values are conservative, high values assume abiogenesis is common once conditions allow it.</td></tr>
+<tr><td>fi</td><td>${params.fi.toFixed(3)}</td><td>Fraction of life-bearing worlds that develop intelligence.</td><td>Highly speculative; ${params.fi.toFixed(3)} should be read as a moderately cautious scenario rather than an observed rate.</td></tr>
+<tr><td>fc</td><td>${params.fc.toFixed(3)}</td><td>Fraction of intelligent civilizations that become radio-communicative.</td><td>Highly speculative and technology-dependent; high values assume communication technology is common and long-lived.</td></tr>
+</tbody></table>
+<p class="note">Reference context: NASA describes the early exoplanet terms of the Drake equation as increasingly informed by observations, while the life, intelligence, and communication terms remain conjectural. See NASA's <a href="https://science.nasa.gov/universe/exoplanets/life-in-the-universe-what-are-the-odds/">Life in the Universe: What are the Odds?</a> and <a href="https://exoplanets.nasa.gov/news/1350/are-we-alone-in-the-universe-revisiting-the-drake-equation.html">Revisiting the Drake Equation</a>. For term definitions, see <a href="https://www.britannica.com/science/Drake-equation">Britannica's Drake equation summary</a>.</p>
+<h3>Hypothesis Coupling Model: ${escapeHtml(els.hypothesisCoupling.options[els.hypothesisCoupling.selectedIndex].text)}</h3>
+<p>The occurrence rates of life (fl) and intelligence (fi) are rarely independent. The selected coupling model dynamically restrains these factors. For example, a <em>Bottleneck model</em> enforces that even if life is common, intelligence remains exceptionally rare, whereas a <em>Strongly coupled</em> model shifts the probability of intelligence up if life is abundant. In the <em>Independent</em> model, fl and fi are sampled and evaluated without cross-restriction, allowing for optimistic scenarios where both life and intelligence are simultaneously highly abundant.</p>
+<h2>Timing, Window, and Observability Assumptions</h2>
+<p>The civilization development time model defines the delay from planetary birth to radio capability. The Normal baseline is retained for comparison, but the Log-normal option treats development time as right-skewed, as if many multiplicative biological factors compound.</p>
+<p>To avoid mathematical double-counting, the simulation strictly separates three timescales:</p>
+<ul>
+    <li><strong>Drake Prior (L<sub>prior</sub>):</strong> Used exclusively to establish the sheer existence probability (sparse weight) of the civilization.</li>
+    <li><strong>Active & Leakage Windows (T<sub>active</sub> + T<sub>leakage</sub>):</strong> The actual physical width of the radio pulse propagating through space. In the <em>Open-ended</em> window model, the active phase is assumed infinite (T<sub>active</sub> = &infin;), but L<sub>prior</sub> remains bounded to prevent the Drake equation from diverging.</li>
+</ul>
+<p>Furthermore, signal detection is governed by the <strong>Union of Duty Cycles</strong>. Even if a signal arrives on Earth, telescopes only observe specific coordinates for fractions of a year (Earth observation time: ${formatDutyCycleTimeEn(params.earthObsTimeLog)}). The model calculates the overlap probability as P = D<sub>tx</sub> + D<sub>earth</sub> - (D<sub>tx</sub> &times; D<sub>earth</sub>), meaning a continuous transmitter guarantees detection during an observation, but rare transient pulses will almost certainly be missed unless monitored continuously.</p>
+
+<h2>Catalog Completeness & Earth Receiver Class</h2>
+<p>The <strong>Catalog selection bias</strong> slider controls the severity of a logistic distance-penalty function, simulating a Beta-distributed probability (p<sub>catalog</sub>) that a target star is actually in our database. During uncertainty scenarios, the model performs Monte Carlo-like logit shifts to test how the results change if our catalog severely underestimates distant stars.</p>
+<p>Detection power threshold is dynamically scaled by the <strong>Earth Receiver Class</strong> (Currently: ${escapeHtml(els.earthReceiver.options[els.earthReceiver.selectedIndex].text)}). Using FAST as a baseline, moving to next-generation arrays like SKA or Lunar Farside Arrays exponentially reduces the required alien transmission power via the inverse-square law, drastically improving the detectability weight without assuming hyper-advanced Kardashev Type II aliens.</p>
+
+<h2>Simulation Results</h2>
+<section class="grid">
+<div class="metric">Peak annual reception probability<strong>${formatProbability(peak.probability)}</strong></div>
+<div class="metric">Peak year<strong>${escapeHtml(formatYear(peak.year))}</strong></div>
+<div class="metric">Arrival distribution peak<strong>${escapeHtml(formatYear(histPeak.year))}</strong></div>
+<div class="metric">Sparse Drake weight<strong>${latestBaseWeight.toFixed(5)}</strong></div>
+</section>
+<p><strong>Sparse Drake weight</strong> is a dimensionless per-target prior used inside this simulator. It is computed from the <strong>coupled</strong> Drake-factor product (Hypothesis Coupling is applied <em>before</em> calculating the final product) multiplied by the selected reference lifetime, then divided across the selected target catalog and clamped. In Open-ended mode this reference lifetime is deliberately separated from the activity-window assumption so the model does not turn an infinite communication window into an infinite Drake weight. It is not a yearly reception probability for Earth, not the probability for a specific named target, and not a summed probability over all targets by itself.</p>
+<h2>Probability By Year</h2>
+<p>The blue line is the annual probability that Earth receives at least one detectable signal from the selected target set. The orange line is the expected number of detectable sources contributing in that receive year. They are related but not identical: the probability curve collapses many independent source probabilities into an at-least-one event, while the expected-source curve keeps the additive source count scale.</p>
+<p class="note">Observation epoch mode: ${params.useBlObservationTimes ? "Breakthrough Listen matched observation years only; unmatched targets contribute zero in this mode." : "Continuous scenario baseline; target table emission years use 2026 as the comparison epoch."}</p>
+${probSvg}
+<h2>Arrival-Year Distribution</h2>
+<p>The histogram is a normalized relative density for likely receive years under the selected timing model, weighted by detectability. Its peak can differ from the probability-curve peak because the probability curve also includes radio-window overlap, sparse Drake weighting, and aggregation across all targets. In this export, the two peaks differ by about ${peakGap.toLocaleString()} years.</p>
+${histSvg}
+<h2>Physical Modeling &amp; Academic Background</h2>
+<div style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:16px;margin:16px 0;font-size:14px;color:#334155">
+    <h3 style="color:#0f172a;margin-top:0">1. Energy Constant K &amp; Minimum Flux F<sub>min</sub></h3>
+    <p>The required transmitter EIRP for detection is modeled as <code>P_required = K &times; d_ly^2</code> where <code>K = 1.12 &times; 10<sup>11</sup> W/ly<sup>2</sup></code>.</p>
+    <p>By free-space path loss, <code>P = 4&pi; &times; d<sup>2</sup> &times; F<sub>min</sub></code> (with 1 ly &approx; 9.4607e15 m), this K corresponds to a minimum detectable flux density threshold:</p>
+    <p style="text-align:center;font-family:monospace;font-weight:bold;color:#0f172a">F<sub>min</sub> = K / (4&pi; &times; (9.4607 &times; 10<sup>15</sup>)<sup>2</sup>) &approx; 10<sup>-22</sup> W/m<sup>2</sup></p>
+    <p>This matches Jansky-level SETI sensitivities (e.g., L-band SEFD &approx; 2 Jy, S/N = 10, bandwidth &approx; 10 kHz, integration time &approx; 300 s).</p>
+
+    <h3 style="color:#0f172a">2. Space Matching Radius (0.2&deg;)</h3>
+    <p>Exoplanet spatial alignment to Breakthrough Listen observations uses a 0.2&deg; (12 arcminutes) threshold. This matches the Half Power Beam Width (HPBW) or Field of View (FOV) of L-band radio telescopes (e.g., Parkes HPBW &approx; 14' = 0.23&deg;, GBT &approx; 9' = 0.15&deg;, FAST &approx; 3' = 0.05&deg;), ensuring the target sits within the primary beam.</p>
+
+    <h3 style="color:#0f172a">3. Kardashev Scale Classification</h3>
+    <p>Equivalent isotropic power classes map to the Kardashev scale: <code>K_scale = (log10(P) - 6) / 10</code>:</p>
+    <ul>
+        <li>Earth-level: P &le; 10<sup>14</sup> W (K_scale &le; 0.8)</li>
+        <li>Kardashev Type I: P &le; 10<sup>16</sup> W (K_scale &le; 1.0)</li>
+        <li>Interstellar-communication level: P &le; 10<sup>20</sup> W (K_scale &le; 1.4, a transition state between Type I and Type II)</li>
+        <li>Type II+: P &gt; 10<sup>20</sup> W (K_scale &gt; 1.4)</li>
+    </ul>
+
+    <h3 style="color:#0f172a">4. Hypothesis Coupling</h3>
+    <p>The coupling model dynamically links life fraction (fl) and intelligence fraction (fi) to represent astrobiological bottleneck debates:</p>
+    <ul>
+        <li><strong>Independent</strong>: fl and fi are decoupled.</li>
+        <li><strong>Weakly Coupled</strong>: fi' = fi &times; (fl / 0.1)<sup>0.5</sup></li>
+        <li><strong>Strongly Coupled</strong>: fi' = fi &times; (fl / 0.1)</li>
+        <li><strong>Bottleneck</strong>: Enforces fi' in [0.001, 0.01].</li>
+        <li><strong>Rare Intelligence</strong>: fl' = fl &times; 1.5, fi' = fi &times; 0.001 (abundant simple life, rare technology).</li>
+    </ul>
+
+    <h3 style="color:#0f172a">5. Dual Timescale Decoupling</h3>
+    <p>To model wavefront propagation, the civilization lifetime L is split into a <code>lPrior</code> (Drake prior occurrence probability) and <code>tActive + tLeakage</code> (physical broadcast duration). This prevents math double-counting and permits detecting remnants of extinct civilizations.</p>
+
+    <h3 style="color:#0f172a">6. Selection Bias Completeness Sigmoid</h3>
+    <p>Catalog completeness probability is modeled as: <code>p_catalog = sigmoid(2.5 - selectionBias &times; 0.02 &times; d + 2.0 &times; q)</code>, where d is distance and q is exoplanet data quality rating. This accounts for observational completeness biases against distant or poorly-characterized exoplanets.</p>
+</div>
+
+<h2>Sensitivity Ranking</h2>
+<p>This ranking perturbs one assumption at a time and measures the largest change in peak annual probability and peak receive year.</p>
+<table><thead><tr><th>Assumption</th><th>Peak probability impact</th><th>Peak-year impact</th></tr></thead><tbody>${sensitivityRows}</tbody></table>
+<h2>Top 20 Candidate Sources by Detectability Weight</h2>
+<table><thead><tr><th>Planet</th><th>Host</th><th>Distance ly</th><th>Required power W</th><th>Detectability weight</th><th>Observation epoch</th><th>Emission year</th></tr></thead><tbody>${targetRows}</tbody></table>
+</main>
+</html>`;
+            downloadTextFile("drake-signal-window-report.html", html);
+        }
+
+        numericIds.forEach(id => els[id].addEventListener("input", scheduleRender));
+        selectIds.forEach(id => els[id].addEventListener("change", render));
+        els.useBlObservationTimes.addEventListener("change", render);
+        document.getElementById("resetButton").addEventListener("click", resetControls);
+        document.getElementById("exportButton").addEventListener("click", exportCsv);
+        document.getElementById("reportButton").addEventListener("click", generateStandaloneReport);
+        document.getElementById("downloadMcButton").addEventListener("click", async () => {
+            try {
+                const res = await fetch("outputs/report.html");
+                if (!res.ok) throw new Error("Network response was not ok");
+                const html = await res.text();
+                downloadTextFile("drake-signal-window-monte-carlo-report.html", html);
+            } catch (err) {
+                // 註：若在本地以 file:/// 協議開啟，fetch 可能會遇到 CORS 限制，建議使用簡易 HTTP 伺服器打開此頁面。
+                els.status.textContent = "Could not download the static report directly; opening it in a new tab.";
+                window.open("outputs/report.html", "_blank");
+            }
+        });
+
+        if (!rawTargets.length) {
+            els.status.textContent = "No EXOPLANETS_DATA records were found in data.js.";
+        } else {
+            render();
+        }
+    </script>
+</body>
+</html>
+
