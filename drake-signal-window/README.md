@@ -4,7 +4,7 @@
 
 Drake Signal Window 是一個研究導向的互動模擬器與可重現技術說明模組。它使用專案既有的 `data.js` 系外行星目標、距離與所需功率估計，加入德雷克方程式風格的稀疏先驗、有限射電通信窗口、光速延遲與觀測可見性假設，用來探索地球端可能接收到星際射電訊號的年份分布。
 
-It uses the project's existing `data.js` exoplanet targets, distances, and required-power estimates, then adds Drake-style sparse priors, finite radio-communication windows, light-travel delay, and observability assumptions to explore the possible arrival-year distribution of interstellar radio signals at Earth.
+It uses the project's existing `data.js` exoplanet targets, distances, and required-power estimates, then adds Drake-style sparse priors, light-travel delay, and observability assumptions to explore the possible arrival-year distribution of interstellar radio signals at Earth. Finite radio-communication windows are retained as a synchronization-loss hypothesis rather than the primary filter.
 
 它的核心問題不是「外星文明有多少」，而是：
 
@@ -12,7 +12,7 @@ Its core question is not "how many extraterrestrial civilizations exist", but:
 
 > 在一組明確假設下，哪些訊號比較可能穿過時間、功率與觀測窗口的篩選，落入地球可接收的年份範圍？
 
-> Under a clear set of assumptions, which signals are more likely to pass through timing, power, and observation-window filters and fall into Earth's receiving range?
+> Under a clear set of assumptions, what would Earth observe if communicative civilizations remain radio-visible, and how much additional loss is introduced by finite-window synchronization?
 
 ## Publication Positioning / 發表定位
 
@@ -20,7 +20,7 @@ This module is being prepared as a research-oriented interactive simulation and 
 
 這個模組正在被整理為研究導向的互動模擬器與可重現技術說明。它最適合的定位不是「外星文明有多少」，而是：
 
-> Given simplified Drake-style priors, finite radio-communication lifetimes, light-travel delay, and observability assumptions, what arrival-year distribution would Earth-based searches preferentially see?
+> Given simplified Drake-style priors, continuous-emission observability, light-travel delay, and a separate finite-window synchronization hypothesis, what arrival-year distribution would Earth-based searches preferentially see?
 
 > 給定簡化的德雷克式先驗、有限射電通信壽命、光速延遲與可觀測性假設，地球端搜尋會偏向看見什麼樣的訊號抵達年份分布？
 
@@ -30,7 +30,7 @@ See `PUBLICATION_POSITIONING.md` for the release framing, safe claims, claims to
 
 ## Abstract / 摘要
 
-Drake Signal Window explores temporal selection effects in interstellar radio detection. Starting from a catalog of exoplanet host systems, it combines Drake-style sparse priors, finite radio-communication lifetimes, light-travel delay, required transmit power, and receiver observability assumptions to estimate how candidate signal arrival years would be distributed under different scenarios. The model is not intended to estimate the true abundance of extraterrestrial civilizations. Instead, it asks which timing, lifetime, power, and observation-window assumptions make potential signals more or less likely to fall inside an Earth-based search window.
+Drake Signal Window explores temporal selection effects in interstellar radio detection. Starting from a catalog of exoplanet host systems, it combines Drake-style sparse priors, continuous-emission observability, light-travel delay, required transmit power, and receiver observability assumptions to estimate how candidate signal arrival years would be distributed under different scenarios. Finite radio-communication lifetimes remain available as a second-layer synchronization-loss hypothesis. The model is not intended to estimate the true abundance of extraterrestrial civilizations.
 
 Drake Signal Window 探索星際射電偵測中的時間選擇效應。它從系外行星宿主星目錄出發，結合德雷克式稀疏先驗、有限射電通信壽命、光速延遲、所需發射功率與接收端可觀測性假設，估計不同情境下候選訊號抵達年份會如何分布。此模型不旨在估計外星文明的真實豐度，而是詢問哪些時間、壽命、功率與觀測窗口假設，會讓潛在訊號更容易或更不容易落入地球端搜尋窗口。
 
@@ -44,7 +44,7 @@ Drake Signal Window 探索星際射電偵測中的時間選擇效應。它從系
 - `simulate.py`：只使用 Python 標準函式庫的模擬腳本，讀取 `../data.js` 後輸出 CSV 與獨立 HTML 報告。
 - `PUBLICATION_POSITIONING.md`: release framing, safe claims, claims to avoid, target audiences, and readiness checklist.
 - `PUBLICATION_POSITIONING.md`：release 定位、安全可主張內容、應避免主張、目標讀者與準備清單。
-- `outputs/arrival_probability_by_year.csv`: baseline annual probability that Earth receives at least one detectable signal.
+- `outputs/arrival_probability_by_year.csv`: baseline annual probability that Earth receives at least one detectable signal, plus finite-window synchronization-loss columns.
 - `outputs/arrival_probability_by_year.csv`：地球每年接收到至少一個可偵測訊號的 baseline 機率。
 - `outputs/monte_carlo_probability_bands.csv`: uncertainty bands from Monte Carlo variation of model assumptions.
 - `outputs/monte_carlo_probability_bands.csv`：由 Monte Carlo 假設變動產生的不確定性區間。
@@ -52,8 +52,6 @@ Drake Signal Window 探索星際射電偵測中的時間選擇效應。它從系
 - `outputs/monte_carlo_samples.csv`：用來產生機率區間的抽樣參數組。
 - `outputs/selected_timing_arrival_year_distribution.csv`: arrival-year density for the selected timing model.
 - `outputs/selected_timing_arrival_year_distribution.csv`：所選時間模型下的抵達年份密度。
-- `outputs/normal_arrival_year_distribution.csv`: reference distribution when civilization birth and development times are modeled as normal distributions.
-- `outputs/normal_arrival_year_distribution.csv`：文明誕生與發展時間皆以常態分布建模時的參考分布。
 - `outputs/sensitivity_ranking.csv`: ranked assumptions by impact on peak probability or peak year.
 - `outputs/sensitivity_ranking.csv`：依峰值機率或峰值年份影響排序的假設敏感度。
 - `outputs/report.html`: standalone browser report generated from the current outputs.
@@ -126,11 +124,11 @@ The current default scenario in `config.json` uses:
 - Monte Carlo 不確定性：啟用，含 `50` 組抽樣情境。
 - Drake terms: `fp = 0.9`, `ne = 0.2`, `fl = 0.25`, `fi = 0.08`, `fc = 0.2`.
 - Drake 參數：`fp = 0.9`、`ne = 0.2`、`fl = 0.25`、`fi = 0.08`、`fc = 0.2`。
-- Timing model: normal.
-- 時間模型：normal。
-- Radio-window model: fixed.
-- 射電窗口模型：fixed。
-- Reference radio-window lifetime: `650` years.
+- Timing model: lognormal.
+- 時間模型：lognormal。
+- Radio-window model: infinite for the primary observability layer; finite windows are reported as synchronization loss.
+- 射電窗口模型：主層使用 infinite；有限窗口作為同步損失假說輸出。
+- Reference radio-window lifetime for the synchronization hypothesis: `650` years.
 - 參考射電窗口壽命：`650` 年。
 - Maximum effective transmit power: `1.0e18 W`.
 - 最大有效發射功率：`1.0e18 W`。
@@ -147,7 +145,7 @@ The current default scenario in `config.json` uses:
 
 ## Current Output Summary / 目前輸出摘要
 
-The current generated outputs indicate a broad baseline reception window rather than a sharp prediction.
+The current generated outputs indicate a broad, still-rising reception curve through the extended 20,000 CE simulation horizon rather than a sharp prediction.
 
 目前生成的輸出顯示的是寬廣的 baseline 接收窗口，而不是尖銳的預測。
 
@@ -161,10 +159,10 @@ The current generated outputs indicate a broad baseline reception window rather 
 - Monte Carlo 中位數機率峰值約在 `3500` 年，`probability_p50` 約為 `0.00671`。
 - In the wider Monte Carlo band near the median peak, `probability_p05` is approximately `0.00091` and `probability_p95` is approximately `0.04488`.
 - 在中位數峰值附近較寬的 Monte Carlo 區間中，`probability_p05` 約為 `0.00091`，`probability_p95` 約為 `0.04488`。
-- The selected timing arrival-year density peaks around year-bin `3070`.
-- 所選時間模型的抵達年份密度峰值約在 year-bin `3070`。
-- The most influential assumptions in the current sensitivity ranking are `Intelligence fraction`, `Radio-window lifetime`, and `Transmit power`.
-- 目前敏感度排序中影響最大的假設是 `Intelligence fraction`、`Radio-window lifetime` 與 `Transmit power`。
+- The selected timing arrival-year density peaks around year-bin `3025`.
+- 所選時間模型的抵達年份密度峰值約在 year-bin `3025`。
+- The most influential assumptions in the current sensitivity ranking are `Intelligence fraction`, `Transmit power`, and `Communicative fraction`.
+- 目前敏感度排序中影響最大的假設是 `Intelligence fraction`、`Transmit power` 與 `Communicative fraction`。
 
 These values describe the current default configuration only. They should be treated as scenario outputs, not empirical predictions.
 
@@ -257,6 +255,10 @@ drake-signal-window/config.json
 
 `radio_window_model` 可設定為 `fixed`、`lognormal` 或 `infinite`。
 
+The primary probability layer now assumes continuous radio visibility after a civilization becomes communicative. Non-infinite radio-window modes are still evaluated as a second layer and reported as synchronization loss.
+
+主機率層現在假設文明進入可通信階段後持續可見；非 infinite 的射電窗口模式仍會作為第二層同步損失進行評估。
+
 - `fixed`: every communicative civilization has the same finite broadcast duration.
 - `fixed`：每個可通信文明都有相同的有限廣播時間。
 - `lognormal`: the slider/config value is the approximate mean, with many short windows and a few very long windows.
@@ -316,8 +318,8 @@ The main use of the model is comparative:
 - `required_power_w` 繼承自主專案模型，應解讀為有效情境門檻，而不是完整儀器流程。
 - Drake parameters are exploratory assumptions, not measured constants.
 - Drake 參數是探索性假設，不是已量測常數。
-- The outputs are sensitive to radio-window lifetime, intelligence fraction, communicative fraction, transmitter power, and observability assumptions.
-- 輸出對射電窗口壽命、智慧比例、可通信比例、發射功率與可觀測性假設敏感。
+- The outputs are sensitive to intelligence fraction, communicative fraction, transmitter power, observability assumptions, and the finite-window synchronization hypothesis.
+- 輸出對智慧比例、可通信比例、發射功率、可觀測性假設與有限窗口同步假說敏感。
 - The default scenario is a release baseline for comparison, not a preferred scientific conclusion.
 - 預設情境是用於比較的 release baseline，不是首選科學結論。
 

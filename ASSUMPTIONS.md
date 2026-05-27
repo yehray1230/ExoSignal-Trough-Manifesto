@@ -69,29 +69,34 @@ T_observed = 2026
 
 因此，距離越遠的目標，訊號必須越早被發射。這會形成一個技術領先下限：遠距發射源必須在地球接收年代之前很久就已具備相應能力。
 
-## 5. 能量門檻假設 / Energy Threshold
+## 5. 能量門檻假設與常數推導 / Energy Threshold & Constant Derivation
 
-模型使用簡化平方反比關係估算所需等效全向發射功率。若接收端最低可偵測通量門檻為 `F_min`，則：
+模型使用簡化平方反比關係估算所需等效全向發射功率。若接收端最低可偵測通量門檻為 $F_{\text{min}}$（單位：$\text{W/m}^2$），則在距離為 $d$（單位：米）時，等效全向輻射功率（EIRP） $P_{\text{required}}$ 為：
 
-```text
-P_required = 4πd²F_min
-```
+$$P_{\text{required}} = 4\pi d^2 F_{\text{min}}$$
 
-本專案將 `4πF_min` 合併為比例常數 `K`，得到：
+### 5.1. 單位換算與比例常數 $K$
+將距離 $d$ 的單位由米換算為光年 ($1 \text{ ly} \approx 9.4607 \times 10^{15} \text{ m}$)，公式變為：
 
-```text
-P_required = K * d^2
-```
+$$P_{\text{required}} = 4\pi (d_{\text{ly}} \times 9.4607 \times 10^{15})^2 F_{\text{min}} \approx 1.125 \times 10^{33} \times F_{\text{min}} \times d_{\text{ly}}^2$$
 
-目前資料產生流程採用：
+本專案為了方便計算，將常數部分合併為比例常數 $K$：
 
-```text
-P_required = 1.12e11 * distance_ly^2
-```
+$$P_{\text{required}} = K \times d_{\text{ly}}^2$$
 
-這裡的 `1.12e11` 是以 Five-hundred-meter Aperture Spherical radio Telescope（FAST）作為高靈敏度地球接收端參考時，折算出的等效門檻常數。它的功能是提供一個接近現代高靈敏度射電觀測能力的 baseline，使模型能比較不同距離目標所需的等效全向發射功率。
+其中，專案設定的基準常數 $K = 1.12 \times 10^{11} \text{ W/ly}^2$。我們可以反推出接收端對應的最低可偵測通量門檻 $F_{\text{min}}$：
 
-其中 `distance_ly` 是由 NASA Exoplanet Archive 中的 `sy_dist` 欄位換算而來：
+$$F_{\text{min}} = \frac{K}{4\pi (9.4607 \times 10^{15})^2} \approx \frac{1.12 \times 10^{11}}{1.125 \times 10^{33}} \approx 10^{-22} \text{ W/m}^2$$
+
+### 5.2. 天文物理合理性
+在無線電地外文明搜尋（SETI）中，$10^{-22} \text{ W/m}^2$ 是一個標準且非常合理的觀測靈敏度基準。
+依據射電天文學的輻射計公式（Radiometer Equation），當望遠鏡在 1.4 GHz (L-band) 的系統等效通量密度（SEFD）約為 2 Jansky ($2 \times 10^{-26} \text{ W/m}^2/\text{Hz}$)，在接收通道頻寬 $\Delta\nu = 10 \text{ kHz}$、積分時間 $\tau = 300$ 秒，且設定訊噪比門檻 $\text{S/N} = 10$、雙偏振通道數 $n_{\text{pol}} = 2$ 時：
+
+$$F_{\text{min}} = \text{S/N} \times \frac{\text{SEFD}}{\sqrt{n_{\text{pol}} \Delta\nu \tau}} \approx 10 \times \frac{2 \times 10^{-26}}{\sqrt{2 \times 10^4 \times 300}} \approx 1.3 \times 10^{-22} \text{ W/m}^2$$
+
+這表明本專案採用的 $K$ 常數對應於現代大口徑望遠鏡（如 FAST 或 GBT）在進行窄頻 SETI 搜尋時的典型物理極限。
+
+其中 `distance_ly` 是由 NASA Exoplanet Archive 中的 `sy_dist`（秒差距）欄位換算而來：
 
 ```text
 distance_ly = sy_dist * 3.26156
@@ -101,40 +106,81 @@ distance_ly = sy_dist * 3.26156
 
 這個功率模型的重點不是提供精確工程設計，而是展示即使在線性距離增加時，所需功率也會以平方尺度快速上升。遠距目標若仍可被看見，通常意味著發射端具有極高有效功率、波束增益，或其他強化可偵測性的條件。
 
-在射電天文中，接收靈敏度並不是單一固定的「最小可接收功率」。實際偵測能力通常取決於 flux density、SEFD、系統溫度、頻寬、積分時間、訊噪比門檻、偏振數、訊號漂移率與搜尋管線。本模型為了維持視覺化可操作性，將這些因素折算為單一 `K` 值。因此，`P_required` 應理解為 FAST baseline 下的概念性 EIRP 門檻，而非 FAST 在任一特定觀測模式下的完整靈敏度預報。
+在射電天文中，接收靈敏度並不是單一固定的「最小可接收功率」。實際偵測能力通常取決於通量密度、SEFD、系統溫度、頻寬、積分時間、訊噪比門檻、偏振數、訊號漂移率與搜尋管線。本模型為了維持視覺化可操作性，將這些因素折算為單一 `K` 值。因此，`P_required` 應理解為 FAST baseline 下的概念性 EIRP 門檻，而非 FAST 在任一特定觀測模式下的完整靈敏度預報。
 
-## 6. FAST 接收端基準 / FAST Receiver Baseline
+## 6. FAST 接收端基準與空間匹配 / FAST Receiver Baseline & Spatial Matching
 
 選用 FAST 作為接收端基準的理由是：FAST 是目前極具代表性的高靈敏度單口徑射電望遠鏡，適合作為「地球現有高階射電偵測能力」的參考點。
 
-本模型中的 FAST baseline 代表：
+### 6.1. 觀測星表匹配半徑 $0.2^\circ$ 的物理依據
+在星表空間資料處理（如 `fetch_exoplanets.py`）中，將系外行星與 Breakthrough Listen（突破聆聽）觀測星表進行空間匹配時，採用了天球夾角 $\Delta\theta \le 0.2^\circ$（12 角分）的判定門檻。這並非任意設定，而是基於主流射電望遠鏡在 L-band (1.4 GHz) 附近的半功率波束寬度（HPBW, Half Power Beam Width）與視場（FOV）：
+- **Green Bank Telescope (GBT, 100m 口徑)**：$\text{HPBW} \approx 9' \approx 0.15^\circ$
+- **Parkes Observatory (64m 口徑)**：$\text{HPBW} \approx 14' \approx 0.23^\circ$
+- **FAST (300m 有效口徑)**：$\text{HPBW} \approx 3' \approx 0.05^\circ$
 
+使用 $0.2^\circ$ 作為空間匹配半徑，其物理意義在於**確保該系外行星系統剛好位於上述單口徑望遠鏡的主波束觀測視場之內**，使得該系外行星與突破聆聽的觀測星表之間具備物理觀測相關性。
+
+### 6.2. FAST 基準的適用界線
+本模型中的 FAST baseline 代表：
 - 以現代高靈敏度地球射電望遠鏡作為接收端。
 - 將接收端門檻折算為等效通量門檻。
 - 再由平方反比關係轉換為目標端所需的等效全向發射功率。
 
 本模型中的 FAST baseline 不代表：
-
 - FAST 官方所有接收機與頻段的完整性能表。
 - 特定 SETI 觀測計畫的完整 radiometer equation。
 - 對任何單一系外行星目標的正式可偵測性預報。
 
 展示本專案時，建議將此參數描述為「以 FAST 作為代表性高靈敏度接收端所折算出的概念性偵測門檻」，而不是簡化成「FAST 可以接收到的最小能量」。
 
-## 7. 可觀測分布假設 / Observed Distribution
+## 7. 可觀測分布、文明尺度與假說耦合模型 / Observability & Coupling Models
 
 本專案區分兩種分布：
+- **底層分布 (Underlying Distribution)**：假設中真實存在的生命世界或技術文明分布。
+- **可觀測分布 (Observable Distribution)**：通過射電偵測方法之時間與能量篩選後留下的子集合。
 
-- 底層分布：假設中真實存在的生命世界或技術文明分布。
-- 可觀測分布：通過射電偵測方法之時間與能量篩選後留下的子集合。
+即使底層分布廣泛且普通，可觀測分布仍可能偏向距離較近、發射功率異常高、或在時間上大幅領先地球的來源。以下是本專案用來量化這些偏差的數學模型與學術設定：
 
-即使底層分布廣泛且普通，可觀測分布仍可能偏向：
+### 7.1. 卡爾達肖夫指數 (Kardashev Scale) 計算與分級
+目標系外行星所需的全向發射功率被歸類為四個等級：
+1. **地球級 (Earth-level)**：$P \le 10^{14} \text{ W}$（對應卡爾達肖夫指數 $K_{\text{scale}} \le 0.8$）
+2. **I 型文明 (Type I)**：$P \le 10^{16} \text{ W}$（對應卡爾達肖夫指數 $K_{\text{scale}} \le 1.0$）
+3. **星際級 (Interstellar-level)**：$P \le 10^{20} \text{ W}$（對應卡爾達肖夫指數 $K_{\text{scale}} \le 1.4$）
+4. **II 型以上 (Type II+)**：$P > 10^{20} \text{ W}$（對應卡爾達肖夫指數 $K_{\text{scale}} > 1.4$）
 
-- 距離較近的系統。
-- 發射功率異常高的來源。
-- 在時間上大幅領先地球的來源。
-- 具備第一型、第二型或更高有效能源尺度的文明。
-- 因定向發射幾何而提高有效接收通量的案例。
+卡爾達肖夫尺度的計算公式為：
+
+$$K_{\text{scale}} = \frac{\log_{10} P - 6}{10}$$
+
+「星際級」（$10^{20} \text{ W}$，卡爾達肖夫指數 1.4）是介於 I 型與 II 型之間的過渡狀態，代表具備定向星際通信能力的高階技術。
+
+### 7.2. 假說耦合模型 (Hypothesis Coupling Models)
+在德雷克信號窗口模擬中，生命發生率 $f_l$ 與智慧生命率 $f_i$ 的關聯透過耦合參數動態調整，這反映了天文生物學中對「生命誕生」與「智慧演化」是否具有共同演化瓶頸的爭論：
+1. **Independent (獨立模型)**：$f_l$ 與 $f_i$ 完全獨立抽樣與評估。
+2. **Weakly Coupled (弱耦合)**：$f_i' = f_i \times \sqrt{f_l / f_{l,\text{ref}}}$ （其中 $f_{l,\text{ref}} = 0.1$）。當生命率低於基準值時，演化出智慧的機率將以平方根的速度被同步壓低。
+3. **Strongly Coupled (強耦合)**：$f_i' = f_i \times (f_l / f_{l,\text{ref}})$。生命與智慧高度正相關，反映出兩者受相同行星環境因子約束的假說。
+4. **Bottleneck (演化瓶頸)**：將智慧生命率 $f_i'$ 硬性限制在偏低的固定區間 $[0.001, 0.01]$。即使生命在星系中隨處可見，演化瓶頸仍會極大限制智慧文明的數量。
+5. **Rare Intelligence (稀有智慧)**：$f_l' = f_l \times 1.5$，但 $f_i' = f_i \times 0.001$。呼應費米悖論的一種解釋：宇宙中可能處處有簡單生命（綠洲），但科技文明卻因不可跨越的智慧演化門檻而極其稀有。
+
+### 7.3. 雙重生命壽命參數的解耦 (Dual Timescales)
+為了精確模擬信號在三維空間的波前傳播，本專案將傳統德雷克方程式中的文明壽命 $L$ 解耦為兩個獨立的參數：
+1. **先驗參考壽命 `lPrior` ($L_{\text{prior}}$)**：決定銀河系歷史中「曾經存在過」的文明總數機率分布。
+2. **廣播與洩漏壽命 `tActive` ($T_{\text{active}}$) 與 `tLeakage` ($T_{\text{leakage}}$)**：決定一個文明進入射電時代後，其發射的信號波前厚度（信號在空間中傳播的時間窗長度）。
+這項設計避免了數學上的雙重計算，同時容許模擬「文明已滅絕但其信號仍在星際間傳播」的情境。
+
+### 7.4. 星表選擇偏誤之邏輯斯迴歸模型 (Selection Bias Sigmoid)
+在篩選偏差實驗室中，對遠距離或資料不完整星表進行加權懲罰的機制，是基於一個 logistic 迴歸函數：
+
+$$p_{\text{catalog}} = \text{sigmoid}(a - b \cdot d + c \cdot q)$$
+
+其中：
+- $a = 2.5$ （模型截距）
+- $b = \text{selectionBias} \times 0.02$ （距離懲罰係數，隨使用者設定調整）
+- $d = \text{distance\_ly}$ （行星距離）
+- $c = 2.0$ （資料品質獎勵係數）
+- $q = \frac{\text{hasPower} + \text{hasDistance} + \text{discoveryConfidence}}{3}$ （資料完整性評分，介於 0 與 1 之間）
+
+此模型利用 sigmoid 函數將「距離衰減」與「資料品質」轉化為該行星是否被收錄在觀測星表中的機率，藉此模擬因人類觀測設備極限產生的星表不完整偏誤。
 
 ### 解讀
 

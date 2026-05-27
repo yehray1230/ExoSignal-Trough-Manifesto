@@ -244,6 +244,23 @@ def build_timing_context(config: dict) -> dict:
     }
 
 
+def build_continuous_timing_context(config: dict) -> dict:
+    context = build_timing_context(config)
+    context["window_model"] = "infinite"
+    context["window_samples"] = []
+    return context
+
+
+def build_synchronization_hypothesis_context(config: dict) -> dict:
+    context = build_timing_context(config)
+    if context["window_model"] == "infinite":
+        context["window_model"] = "fixed"
+        civ = config["civilization"]
+        window = max(float(civ["radio_window_years"]), float(civ["min_radio_window_years"]))
+        context["window_samples"] = [(window, 1.0)]
+    return context
+
+
 def active_probability_at(emit_year: float, config: dict, context: dict) -> float:
     civ = config["civilization"]
     timing_model = context["timing_model"]
@@ -312,30 +329,52 @@ def arrival_probability_series(targets: list[Target], config: dict) -> list[dict
     end = int(config["observation_year_end"])
     step = max(int(config["year_step"]), 1)
     window = max(float(civ["radio_window_years"]), float(civ["min_radio_window_years"]))
-    timing_context = build_timing_context(config)
+    continuous_context = build_continuous_timing_context(config)
+    synchronization_context = build_synchronization_hypothesis_context(config)
     base_weight = drake_weight(config, window, len(targets))
 
     rows = []
     for year in range(start, end + 1, step):
         no_detection = 1.0
+        no_detection_synchronized = 1.0
         expected_sources = 0.0
+        expected_synchronized_sources = 0.0
         for target in targets:
             emit_year = year - target.distance_ly
-            active_probability = active_probability_at(emit_year, config, timing_context)
+            continuous_active_probability = active_probability_at(emit_year, config, continuous_context)
+            synchronized_active_probability = active_probability_at(emit_year, config, synchronization_context)
+            observability = observability_weight(target, config) * observation_epoch_weight(year, target, config)
             p = (
                 base_weight
-                * active_probability
-                * observability_weight(target, config)
-                * observation_epoch_weight(year, target, config)
+                * continuous_active_probability
+                * observability
+            )
+            p_synchronized = (
+                base_weight
+                * synchronized_active_probability
+                * observability
             )
             p = clamp(p, 0.0, 0.95)
+            p_synchronized = clamp(p_synchronized, 0.0, 0.95)
             no_detection *= 1.0 - p
+            no_detection_synchronized *= 1.0 - p_synchronized
             expected_sources += p
+            expected_synchronized_sources += p_synchronized
+        probability = 1.0 - no_detection
+        synchronized_probability = 1.0 - no_detection_synchronized
+        synchronization_loss_fraction = (
+            clamp((probability - synchronized_probability) / probability, 0.0, 1.0)
+            if probability > 0
+            else 0.0
+        )
         rows.append(
             {
                 "year": year,
-                "probability_at_least_one_signal": 1.0 - no_detection,
+                "probability_at_least_one_signal": probability,
                 "expected_detectable_sources": expected_sources,
+                "window_limited_probability": synchronized_probability,
+                "window_limited_expected_sources": expected_synchronized_sources,
+                "synchronization_loss_fraction": synchronization_loss_fraction,
             }
         )
     return rows
@@ -744,7 +783,7 @@ def run_monte_carlo(targets: list[Target], config: dict, baseline_rows: list[dic
 
 
 def selected_timing_distribution(targets: list[Target], config: dict) -> list[dict]:
-    scenario = config["normal_distribution_scenario"]
+    scenario = config.get("selected_timing_distribution_scenario", config.get("normal_distribution_scenario", {}))
     bin_size = max(int(scenario["histogram_bin_years"]), 1)
     start = int(config["observation_year_start"])
     end = int(config["observation_year_end"])
@@ -946,8 +985,8 @@ def write_html(
   <h1>德雷克方程與射電通信時間窗口推論</h1>
   <p>此報告由 <code>simulate.py</code> 產生，直接讀取專案根目錄的 <code>data.js</code>。它不是在宣稱外星文明數量，而是把德雷克方程參數、射電通信窗口、光速延遲與既有功率門檻資料組合成可調情境。</p>
 
-  <p>This standalone report uses timing model <code>{timing_model}</code> and radio-window model <code>{window_model}</code>. Years on the probability curve are Earth receive years; source activity is evaluated at <code>emit_year = receive_year - distance_ly</code>, so light-speed delay is already included.</p>
-  <p>The normal timing model is retained as a symmetric baseline. The log-normal and gamma options are right-skewed alternatives for multiplicative development factors or prerequisite-accumulation processes. The log-normal radio-window model allows many short broadcast phases and a small number of very long phases. The infinite radio-window model treats civilizations as remaining radio-detectable after they become communicative; in that mode <code>radio_window_years</code> remains only a reference lifetime for the sparse Drake prior, not a shutdown time.</p>
+  <p>This standalone report uses timing model <code>{timing_model}</code>. Years on the probability curve are Earth receive years; source activity is evaluated at <code>emit_year = receive_year - distance_ly</code>, so light-speed delay is already included.</p>
+  <p>The blue curve is the first layer: observable civilizations under a continuous-emission assumption. The orange curve keeps the radio-window synchronization hypothesis and shows how much additional loss is introduced if emissions are finite or intermittent. The normal timing model is retained for comparison, while the default log-normal and gamma options are right-skewed alternatives for multiplicative development factors or prerequisite-accumulation processes.</p>
   <p>Rigor controls are enabled in this run: uncertainty spread <code>{float(rigor.get("uncertainty_spread", 0.0)):.2f}</code>, catalog selection bias <code>{float(rigor.get("catalog_selection_bias", 0.0)):.2f}</code>, beam coverage <code>{float(communication.get("beam_coverage", 1.0)):.2f}</code>, duty cycle <code>{float(communication.get("duty_cycle", 1.0)):.2f}</code>, frequency coverage <code>{float(communication.get("frequency_coverage", 1.0)):.2f}</code>, and assumption correlation <code>{float(rigor.get("assumption_correlation", 0.0)):.2f}</code>.</p>
 
   <section class="metric-row">
@@ -961,17 +1000,17 @@ def write_html(
     <line class="axis" x1="{pad}" y1="{height-pad}" x2="{width-pad}" y2="{height-pad}" />
     <line class="axis" x1="{pad}" y1="{pad}" x2="{pad}" y2="{height-pad}" />
     <polyline class="line" points="{points_for_line(series, "year", "probability_at_least_one_signal", width, height, pad)}" />
-    <polyline class="expected" points="{points_for_line(series, "year", "expected_detectable_sources", width, height, pad)}" />
+    <polyline class="expected" points="{points_for_line(series, "year", "window_limited_probability", width, height, pad)}" />
   </svg>
   <p class="caption">藍線為至少一個訊號抵達的年度機率；橘線為期望可偵測來源數，兩者各自正規化到圖面高度。峰值年份約為 {peak_series["year"]}。</p>
 
-  <h2>常態分佈假設下的最可能接收年份分布</h2>
+  <h2>所選時間模型下的最可能接收年份分布</h2>
   <svg viewBox="0 0 {width} {height}" role="img" aria-label="Most likely arrival-year distribution">
     <line class="axis" x1="{pad}" y1="{height-pad}" x2="{width-pad}" y2="{height-pad}" />
     <line class="axis" x1="{pad}" y1="{pad}" x2="{pad}" y2="{height-pad}" />
     {bars_for_hist(distribution, width, height, pad)}
   </svg>
-  <p class="caption">直方圖以常態分佈抽樣文明誕生年份與從誕生到射電能力的發展時間，並加入候選目標距離造成的光速延遲。最高密度區間起點約為 {peak_dist["year_bin_start"]}。</p>
+  <p class="caption">直方圖使用目前選取的文明時間模型，而不是強制用常態分佈作第一展示。最高密度區間起點約為 {peak_dist["year_bin_start"]}。</p>
 
 {monte_carlo_report_section(monte_carlo, width, height, pad)}
 

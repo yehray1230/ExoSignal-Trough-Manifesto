@@ -57,7 +57,7 @@
             gap: 10px;
             align-items: center;
         }
-        .nav a, .nav select {
+        .nav a, .nav select, .nav button {
             color: #bae6fd;
             text-decoration: none;
             border: 1px solid rgba(125, 211, 252, 0.36);
@@ -67,6 +67,10 @@
             font-size: 0.86rem;
             font-weight: 700;
             white-space: nowrap;
+        }
+        .nav button {
+            cursor: pointer;
+            font-family: inherit;
         }
         .nav select {
             min-width: 132px;
@@ -259,6 +263,7 @@
                 </select>
                 <a id="radar-link" href="index.html">Return to 3D Signal Radar</a>
                 <a id="readme-link" href="README.md">Read Methodological Notes</a>
+                <button id="report-button" type="button">Export standalone report</button>
             </nav>
         </header>
 
@@ -278,6 +283,10 @@
             <div class="control">
                 <label><span id="label-epoch">Earth receiving epoch</span><strong id="epoch-value">2026</strong></label>
                 <input id="epoch-slider" type="range" min="1900" max="2300" step="5" value="2026">
+            </div>
+            <div class="control">
+                <label><span id="label-bl-epoch">Breakthrough Listen observed epochs</span><strong id="bl-epoch-value">Off</strong></label>
+                <input id="bl-epoch-toggle" type="checkbox">
             </div>
             <div class="control">
                 <label><span id="label-geometry">Emission geometry</span><strong id="geometry-value">Isotropic</strong></label>
@@ -510,16 +519,19 @@
             sensitivity: document.getElementById('sensitivity-slider'),
             lead: document.getElementById('lead-slider'),
             epoch: document.getElementById('epoch-slider'),
+            blEpoch: document.getElementById('bl-epoch-toggle'),
             geometry: document.getElementById('geometry-select'),
             labelPower: document.getElementById('label-power'),
             labelSensitivity: document.getElementById('label-sensitivity'),
             labelLead: document.getElementById('label-lead'),
             labelEpoch: document.getElementById('label-epoch'),
+            labelBlEpoch: document.getElementById('label-bl-epoch'),
             labelGeometry: document.getElementById('label-geometry'),
             powerValue: document.getElementById('power-value'),
             sensitivityValue: document.getElementById('sensitivity-value'),
             leadValue: document.getElementById('lead-value'),
             epochValue: document.getElementById('epoch-value'),
+            blEpochValue: document.getElementById('bl-epoch-value'),
             geometryValue: document.getElementById('geometry-value'),
             metricVisible: document.getElementById('metric-visible'),
             metricRadius: document.getElementById('metric-radius'),
@@ -545,13 +557,37 @@
             distributionTitle: document.getElementById('distribution-title'),
             distributionCaption: document.getElementById('distribution-caption'),
             funnelNote: document.getElementById('funnel-note'),
-            distributionNote: document.getElementById('distribution-note')
+            distributionNote: document.getElementById('distribution-note'),
+            reportButton: document.getElementById('report-button')
         };
 
         const data = (window.EXOPLANETS_DATA || []).map(item => ({
             ...item,
             signal_year_dynamic: 2026 - item.distance_ly
         }));
+
+        function getBlObservationYears(item) {
+            const observations = Array.isArray(item.bl_observations) ? item.bl_observations : [];
+            const years = observations
+                .map(observation => observation.observation_year)
+                .filter(Number.isFinite);
+            if (!years.length && Number.isFinite(item.bl_latest_observed_year)) {
+                years.push(item.bl_latest_observed_year);
+            }
+            return years;
+        }
+
+        function observedEpoch(item, m) {
+            if (m.blEpoch) {
+                const years = getBlObservationYears(item);
+                if (years.length) return Math.max(...years);
+            }
+            return m.epoch;
+        }
+
+        function passObservation(item, m) {
+            return !m.blEpoch || getBlObservationYears(item).length > 0;
+        }
 
         function getClass(power) {
             return classes.find(item => power <= item.max) || classes[classes.length - 1];
@@ -583,24 +619,25 @@
                 effectivePower,
                 radius,
                 lead: Number(el.lead.value),
-                epoch: Number(el.epoch.value)
+                epoch: Number(el.epoch.value),
+                blEpoch: Boolean(el.blEpoch.checked)
             };
         }
 
         function passTime(item, m) {
-            return item.distance_ly <= m.lead;
+            return passObservation(item, m) && item.distance_ly <= m.lead;
         }
 
         function passEnergy(item, m) {
-            return item.required_power_w <= m.effectivePower;
+            return passObservation(item, m) && item.required_power_w <= m.effectivePower;
         }
 
         function passBoth(item, m) {
-            return passTime(item, m) && passEnergy(item, m);
+            return passObservation(item, m) && passTime(item, m) && passEnergy(item, m);
         }
 
         function getCounts(m) {
-            const total = data.length;
+            const total = data.filter(item => passObservation(item, m)).length;
             const time = data.filter(item => passTime(item, m)).length;
             const energy = data.filter(item => passEnergy(item, m)).length;
             const both = data.filter(item => passBoth(item, m)).length;
@@ -609,6 +646,28 @@
 
         function classCounts(items) {
             return classes.map(cls => items.filter(item => getClass(item.required_power_w).key === cls.key).length);
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[char]));
+        }
+
+        function downloadTextFile(filename, html) {
+            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
         }
 
         function setFunnel(id, count, total) {
@@ -633,7 +692,7 @@
                             label(context) {
                                 const tx = text();
                                 const p = context.raw.source;
-                                const sent = Math.floor(Number(el.epoch.value) - p.distance_ly);
+                                const sent = Math.floor(observedEpoch(p, model()) - p.distance_ly);
                                 return `${p.pl_name}: ${p.distance_ly.toFixed(1)} ${tx.ly}, ${compactPower(p.required_power_w)}, ${tx.emitted} ${sent}`;
                             }
                         }
@@ -679,7 +738,7 @@
             }
         });
 
-        function drawHeatmap(currentModel) {
+        function drawHeatmap(currentModel, isCoarse = false) {
             const canvas = document.getElementById('heatmap');
             const rect = canvas.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;
@@ -688,18 +747,31 @@
             const ctx = canvas.getContext('2d');
             ctx.scale(dpr, dpr);
 
-            const cols = 44;
-            const rows = 30;
+            const cols = isCoarse ? 11 : 44;
+            const rows = isCoarse ? 8 : 30;
             const cellW = rect.width / cols;
             const cellH = rect.height / rows;
+
+            // Optimize: Extract loop invariant out of cell loops
+            const baseline = data.filter(item => passObservation(item, currentModel));
+            const baselineLength = Math.max(baseline.length, 1);
 
             for (let y = 0; y < rows; y++) {
                 const logPower = 12 + ((rows - 1 - y) / (rows - 1)) * 14;
                 for (let x = 0; x < cols; x++) {
                     const lead = 25 + (x / (cols - 1)) * 975;
                     const effectivePower = Math.pow(10, logPower) * currentModel.sensitivity * currentModel.beamGain;
-                    const visible = data.filter(item => item.distance_ly <= lead && item.required_power_w <= effectivePower).length;
-                    const ratio = visible / data.length;
+                    
+                    // Optimize: Use simple fast iteration loop instead of filter array instantiation
+                    let visible = 0;
+                    for (let i = 0; i < baseline.length; i++) {
+                        const item = baseline[i];
+                        if (item.distance_ly <= lead && item.required_power_w <= effectivePower) {
+                            visible++;
+                        }
+                    }
+                    
+                    const ratio = visible / baselineLength;
                     const hue = 205 - ratio * 155;
                     const light = 13 + ratio * 48;
                     ctx.fillStyle = `hsl(${hue}, 82%, ${light}%)`;
@@ -722,7 +794,7 @@
         function updateScatter(m) {
             const tx = text();
             const observable = data.filter(item => passBoth(item, m));
-            const hidden = data.filter(item => !passBoth(item, m));
+            const hidden = data.filter(item => passObservation(item, m) && !passBoth(item, m));
             const datasets = [
                 {
                     label: tx.filtered,
@@ -781,6 +853,7 @@
             el.labelSensitivity.innerText = tx.sensitivity;
             el.labelLead.innerText = tx.lead;
             el.labelEpoch.innerText = tx.epoch;
+            el.labelBlEpoch.innerText = tx.blEpoch || 'Breakthrough Listen observed epochs';
             el.labelGeometry.innerText = tx.geometry;
             Array.from(el.geometry.options).forEach((option, index) => {
                 option.text = tx.geometryOptions[index];
@@ -809,7 +882,7 @@
             if (refresh) update();
         }
 
-        function update() {
+        function update(coarse = false) {
             applyLanguage(false);
             const tx = text();
             const m = model();
@@ -820,12 +893,13 @@
             el.sensitivityValue.innerText = `${m.sensitivity.toLocaleString(undefined, { maximumFractionDigits: 0 })}x`;
             el.leadValue.innerText = `${m.lead} ${tx.yearsShort}`;
             el.epochValue.innerText = String(m.epoch);
+            el.blEpochValue.innerText = m.blEpoch ? (tx.blEpochOn || 'On') : (tx.blEpochOff || 'Off');
             el.geometryValue.innerText = el.geometry.options[el.geometry.selectedIndex].text.replace(/\s*\(.+\)/, '');
 
             el.metricVisible.innerText = `${counts.both} / ${counts.total}`;
             el.metricRadius.innerText = `${Math.round(m.radius).toLocaleString()} LY`;
-            el.metricTime.innerText = `${((counts.time / counts.total) * 100).toFixed(1)}%`;
-            el.metricEnergy.innerText = `${((counts.energy / counts.total) * 100).toFixed(1)}%`;
+            el.metricTime.innerText = `${(counts.total ? (counts.time / counts.total) * 100 : 0).toFixed(1)}%`;
+            el.metricEnergy.innerText = `${(counts.total ? (counts.energy / counts.total) * 100 : 0).toFixed(1)}%`;
 
             setFunnel('total', counts.total, counts.total);
             setFunnel('time', counts.time, counts.total);
@@ -841,10 +915,121 @@
             distributionChart.data.labels = classes.map((item, index) => classLabel(index));
             distributionChart.data.datasets[0].label = tx.underlying;
             distributionChart.data.datasets[1].label = tx.observable;
-            distributionChart.data.datasets[0].data = classCounts(data);
+            distributionChart.data.datasets[0].data = classCounts(data.filter(item => passObservation(item, m)));
             distributionChart.data.datasets[1].data = classCounts(observable);
             distributionChart.update();
-            drawHeatmap(m);
+            drawHeatmap(m, coarse);
+        }
+
+        function generateStandaloneReport() {
+            update();
+            const m = model();
+            const counts = getCounts(m);
+            const observable = data.filter(item => passBoth(item, m));
+            const topObservable = observable
+                .slice()
+                .sort((a, b) => a.distance_ly - b.distance_ly)
+                .slice(0, 20);
+            const underlyingCounts = classCounts(data.filter(item => passObservation(item, m)));
+            const observableCounts = classCounts(observable);
+            const scatterImage = scatterChart.canvas.toDataURL('image/png');
+            const heatmapImage = document.getElementById('heatmap').toDataURL('image/png');
+            const distributionImage = distributionChart.canvas.toDataURL('image/png');
+            const now = new Date().toISOString();
+            const classRows = classes.map((cls, index) => `
+                <tr>
+                    <td>${escapeHtml(classLabel(index))}</td>
+                    <td>${underlyingCounts[index].toLocaleString()}</td>
+                    <td>${observableCounts[index].toLocaleString()}</td>
+                </tr>
+            `).join('');
+            const targetRows = topObservable.map(item => `
+                <tr>
+                    <td>${escapeHtml(item.pl_name)}</td>
+                    <td>${escapeHtml(item.hostname)}</td>
+                    <td>${item.distance_ly.toFixed(1)}</td>
+                    <td>${compactPower(item.required_power_w)}</td>
+                    <td>${Math.round(observedEpoch(item, m) - item.distance_ly)}</td>
+                </tr>
+            `).join('');
+            const html = `<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Standalone Report - Selection Bias Lab</title>
+<style>
+body{margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif;line-height:1.55}
+main{max-width:1100px;margin:auto;padding:32px 24px}
+h1{margin:0 0 8px;font-size:30px} h2{margin-top:30px}
+.meta,.note{color:#475569}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric{border:1px solid #cbd5e1;border-radius:8px;padding:12px;background:white}.metric strong{display:block;font-size:22px}
+table{border-collapse:collapse;width:100%;background:white}th,td{border:1px solid #cbd5e1;padding:8px;text-align:left}img{max-width:100%;border:1px solid #cbd5e1;border-radius:8px;background:#020617;margin:8px 0 18px}
+@media(max-width:800px){.grid{grid-template-columns:1fr}}
+</style>
+<main>
+<h1>Selection Bias Lab Standalone Report</h1>
+<p class="meta">Exported ${escapeHtml(now)} from the interactive lab. This file embeds the current assumptions, parameters, simulation results, and chart images so it can be read without the rest of the project.</p>
+<h2>Premise And Scope</h2>
+<p>${escapeHtml(i18n.en.pageSubtitle)}</p>
+<p class="note">The model separates physical detectability from actual habitability. Targets outside the visible sample are filtered out by the selected time and energy assumptions; the report should not be read as evidence that those systems are empty.</p>
+<h2>Power Threshold Model</h2>
+<p>The energy filter uses the conceptual threshold <strong>P_required = 1.12e11 * d^2</strong>, where <strong>d</strong> is distance in light-years and P_required is an equivalent isotropic radiated power in watts. This is a simplified free-space path-loss model: a signal spreads over an area proportional to distance squared, so maintaining the same received flux threshold requires transmitted power to grow with d^2.</p>
+<p class="note">The coefficient 1.12e11 W / ly^2 is the project's FAST-baseline receiver sensitivity assumption. In this interface, <strong>Receiver sensitivity gain = 1x</strong> means the baseline FAST-like receiver threshold; values above 1x represent a hypothetical receiver or processing gain that lowers the effective required transmitter power. Beam gain is modeled separately as an emission-geometry multiplier.</p>
+<h2>Current Parameters</h2>
+<table><tbody>
+<tr><th>Assumed isotropic transmitter power</th><td>${compactPower(m.transmitter)}</td></tr>
+<tr><th>Receiver sensitivity gain</th><td>${m.sensitivity.toLocaleString()}x, where 1x is the FAST baseline used by this project</td></tr>
+<tr><th>Emission geometry gain</th><td>${m.beamGain.toLocaleString()}x (${escapeHtml(el.geometry.options[el.geometry.selectedIndex].text)})</td></tr>
+<tr><th>Effective power threshold</th><td>${compactPower(m.effectivePower)}</td></tr>
+<tr><th>Mundane-civilization lead time</th><td>${m.lead.toLocaleString()} years</td></tr>
+<tr><th>Earth receiving epoch</th><td>${m.epoch}</td></tr>
+<tr><th>Observation epoch model</th><td>${m.blEpoch ? 'Breakthrough Listen matched observation years only' : 'Manual receiving epoch slider'}</td></tr>
+<tr><th>Effective detection radius</th><td>${Math.round(m.radius).toLocaleString()} light-years</td></tr>
+</tbody></table>
+<h2>Simulation Results</h2>
+<section class="grid">
+<div class="metric">Candidate targets<strong>${counts.total.toLocaleString()}</strong></div>
+<div class="metric">Time-feasible<strong>${counts.time.toLocaleString()}</strong></div>
+<div class="metric">Energy-feasible<strong>${counts.energy.toLocaleString()}</strong></div>
+<div class="metric">Jointly observable<strong>${counts.both.toLocaleString()}</strong></div>
+</section>
+<p>${escapeHtml(i18n.en.jointly).replace('{both}', counts.both.toLocaleString()).replace('{total}', counts.total.toLocaleString())}</p>
+<h2>Distance-Power Phase Space</h2>
+<img alt="Distance-power phase-space chart" src="${scatterImage}">
+<h2>Mundane-Civilization Invisibility Region</h2>
+<img alt="Lead-time and power heatmap" src="${heatmapImage}">
+<h2>Underlying Targets vs Observable Sample</h2>
+<img alt="Underlying and observable class distribution" src="${distributionImage}">
+<table><thead><tr><th>Class</th><th>Underlying targets</th><th>Observable after filters</th></tr></thead><tbody>${classRows}</tbody></table>
+<h2>Nearest Jointly Observable Targets</h2>
+<table><thead><tr><th>Planet</th><th>Host</th><th>Distance ly</th><th>Required power W</th><th>Approx. emission year at selected/observed epoch</th></tr></thead><tbody>${targetRows || '<tr><td colspan="5">No targets pass both filters under the exported settings.</td></tr>'}</tbody></table>
+<h2>Physical Modeling &amp; Academic Background</h2>
+<div style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:16px;margin:16px 0;font-size:14px;color:#334155">
+    <h3 style="color:#0f172a;margin-top:0">1. Energy Constant K &amp; Minimum Flux F<sub>min</sub></h3>
+    <p>The required transmitter EIRP for detection is modeled as <code>P_required = K &times; d_ly^2</code> where <code>K = 1.12 &times; 10<sup>11</sup> W/ly<sup>2</sup></code>.</p>
+    <p>By free-space path loss, <code>P = 4&pi; &times; d<sup>2</sup> &times; F<sub>min</sub></code> (with 1 ly &approx; 9.4607e15 m), this K corresponds to a minimum detectable flux density threshold:</p>
+    <p style="text-align:center;font-family:monospace;font-weight:bold;color:#0f172a">F<sub>min</sub> = K / (4&pi; &times; (9.4607 &times; 10<sup>15</sup>)<sup>2</sup>) &approx; 10<sup>-22</sup> W/m<sup>2</sup></p>
+    <p>This matches Jansky-level SETI sensitivities (e.g., L-band SEFD &approx; 2 Jy, S/N = 10, bandwidth &approx; 10 kHz, integration time &approx; 300 s).</p>
+
+    <h3 style="color:#0f172a">2. Space Matching Radius (0.2&deg;)</h3>
+    <p>Exoplanet spatial alignment to Breakthrough Listen observations uses a 0.2&deg; (12 arcminutes) threshold. This matches the Half Power Beam Width (HPBW) or Field of View (FOV) of L-band radio telescopes (e.g., Parkes HPBW &approx; 14' = 0.23&deg;, GBT &approx; 9' = 0.15&deg;, FAST &approx; 3' = 0.05&deg;), ensuring the target sits within the primary beam.</p>
+
+    <h3 style="color:#0f172a">3. Kardashev Scale Classification</h3>
+    <p>Equivalent isotropic power classes map to the Kardashev scale: <code>K_scale = (log10(P) - 6) / 10</code>:</p>
+    <ul>
+        <li>Earth-level: P &le; 10<sup>14</sup> W (K_scale &le; 0.8)</li>
+        <li>Kardashev Type I: P &le; 10<sup>16</sup> W (K_scale &le; 1.0)</li>
+        <li>Interstellar-communication level: P &le; 10<sup>20</sup> W (K_scale &le; 1.4, a transition state between Type I and Type II)</li>
+        <li>Type II+: P &gt; 10<sup>20</sup> W (K_scale &gt; 1.4)</li>
+    </ul>
+
+    <h3 style="color:#0f172a">4. Selection Bias Completeness Sigmoid</h3>
+    <p>Catalog completeness probability is modeled as: <code>p_catalog = sigmoid(2.5 - selectionBias &times; 0.02 &times; d + 2.0 &times; q)</code>, where d is distance and q is exoplanet data quality rating. This accounts for observational completeness biases against distant or poorly-characterized exoplanets.</p>
+</div>
+
+<h2>Reference Notes</h2>
+<p class="note">The Drake-equation terms and their uncertainty are background context for this project rather than direct constraints in this lab. NASA notes that the early exoplanet terms are increasingly informed by observations while the life, intelligence, and communicative-civilization terms remain highly conjectural. See NASA's <a href="https://science.nasa.gov/universe/exoplanets/life-in-the-universe-what-are-the-odds/">Life in the Universe: What are the Odds?</a> and <a href="https://exoplanets.nasa.gov/news/1350/are-we-alone-in-the-universe-revisiting-the-drake-equation.html">Revisiting the Drake Equation</a>.</p>
+</main>
+</html>`;
+            downloadTextFile('selection-bias-lab-report.html', html);
         }
 
         function waitForData() {
@@ -855,10 +1040,32 @@
             update();
         }
 
-        [el.power, el.sensitivity, el.lead, el.epoch, el.geometry].forEach(input => {
-            input.addEventListener('input', update);
-            input.addEventListener('change', update);
+        let fineRenderTimer = null;
+
+        function handleSliderInput() {
+            clearTimeout(fineRenderTimer);
+            update(true);
+            fineRenderTimer = setTimeout(() => {
+                update(false);
+            }, 150);
+        }
+
+        [el.power, el.sensitivity, el.lead, el.epoch].forEach(input => {
+            input.addEventListener('input', handleSliderInput);
+            input.addEventListener('change', () => {
+                clearTimeout(fineRenderTimer);
+                update(false);
+            });
         });
+
+        [el.blEpoch, el.geometry].forEach(input => {
+            input.addEventListener('change', () => {
+                clearTimeout(fineRenderTimer);
+                update(false);
+            });
+        });
+
+        el.reportButton.addEventListener('click', generateStandaloneReport);
         el.lang.addEventListener('change', event => {
             currentLang = event.target.value;
             localStorage.setItem(LANGUAGE_STORAGE_KEY, currentLang);

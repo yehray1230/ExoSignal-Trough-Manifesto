@@ -209,6 +209,7 @@
             background: var(--cyan);
         }
         .legend .expected::before { background: var(--gold); }
+        .legend .window::before { background: var(--gold); }
         .legend .hist::before { background: var(--green); }
         .chart {
             width: 100%;
@@ -224,7 +225,7 @@
         .prob-line { fill: none; stroke: var(--cyan); stroke-width: 3; }
         .uncertainty-band { fill: var(--cyan); opacity: 0.16; }
         .uncertainty-low, .uncertainty-high { fill: none; stroke: var(--cyan); stroke-width: 1; opacity: 0.42; stroke-dasharray: 5 5; }
-        .expected-line { fill: none; stroke: var(--gold); stroke-width: 2; opacity: 0.95; }
+        .expected-line, .window-line { fill: none; stroke: var(--gold); stroke-width: 2; opacity: 0.95; }
         .hist-bar { fill: var(--green); opacity: 0.76; }
         .peak-dot { fill: var(--rose); stroke: #fff; stroke-width: 1.5; }
         .table-wrap {
@@ -374,11 +375,11 @@
                     </div>
                     <div class="control">
                         <label for="tActive">T_active 主動廣播壽命 <strong id="tActiveValue"></strong></label>
-                        <input id="tActive" type="range" min="0" max="5000" step="25" value="500">
+                        <input id="tActive" type="range" min="0" max="20000" step="25" value="500">
                     </div>
                     <div class="control">
                         <label for="tLeakage">T_leakage 洩漏信號壽命 <strong id="tLeakageValue"></strong></label>
-                        <input id="tLeakage" type="range" min="0" max="2000" step="25" value="150">
+                        <input id="tLeakage" type="range" min="0" max="10000" step="25" value="150">
                     </div>
                     <div class="control">
                         <label for="windowModel">Radio window model <strong id="windowModelValue"></strong></label>
@@ -412,7 +413,7 @@
                     </div>
                     <div class="control">
                         <label for="yearEnd">觀測結束年份 <strong id="yearEndValue"></strong></label>
-                        <input id="yearEnd" type="range" min="2600" max="10000" step="100" value="7000">
+                        <input id="yearEnd" type="range" min="2600" max="30000" step="100" value="20000">
                     </div>
                     <div class="control">
                         <label for="targetCount">篩選目標數量 <strong id="targetCountValue"></strong></label>
@@ -572,15 +573,15 @@
             birthStd: 1800,
             devMean: 4500,
             devStd: 900,
-            timingModel: "normal",
+            timingModel: "lognormal",
             lPrior: 1000,
             tActive: 500,
             tLeakage: 150,
-            windowModel: "fixed",
+            windowModel: "infinite",
             earthReceiver: "fast",
             maxPower: 18,
             rolloff: 1.25,
-            yearEnd: 7000,
+            yearEnd: 20000,
             targetCount: 800,
             uncertaintySpread: 0.35,
             selectionBias: 0.4,
@@ -958,6 +959,7 @@
             const totalWindow = params.tActive + params.tLeakage;
             const windowStd = Math.max(25, totalWindow * 1.1);
             return {
+                windowModel: params.windowModel,
                 devSamples: params.timingModel === "normal"
                     ? []
                     : makeWeightedSamples(params.timingModel, params.devMean, params.devStd, 15),
@@ -969,8 +971,29 @@
             };
         }
 
-        function activeProbabilityAt(emitYear, params, timingContext) {
+        function buildContinuousTimingContext(params) {
+            return {
+                ...buildTimingContext(params),
+                windowSamples: [],
+                windowModel: "infinite"
+            };
+        }
+
+        function buildSynchronizationTimingContext(params) {
+            const context = buildTimingContext(params);
+            const totalWindow = params.tActive + params.tLeakage;
             if (params.windowModel === "infinite") {
+                context.windowSamples = [{ value: totalWindow, weight: 1 }];
+                context.windowModel = "fixed";
+            } else {
+                context.windowModel = params.windowModel;
+            }
+            return context;
+        }
+
+        function activeProbabilityAt(emitYear, params, timingContext) {
+            const windowModel = timingContext.windowModel || params.windowModel;
+            if (windowModel === "infinite") {
                 if (params.timingModel === "normal") {
                     const startMu = params.birthMean + params.devMean;
                     const startSigma = Math.sqrt(params.birthStd ** 2 + params.devStd ** 2);
@@ -987,7 +1010,7 @@
                 return clamp(probability, 0, 1);
             }
 
-            if (params.timingModel === "normal" && params.windowModel === "fixed") {
+            if (params.timingModel === "normal" && windowModel === "fixed") {
                 const startMu = params.birthMean + params.devMean;
                 const startSigma = Math.sqrt(params.birthStd ** 2 + params.devStd ** 2);
                 const totalWindow = params.tActive + params.tLeakage;
@@ -1024,71 +1047,128 @@
             return density;
         }
 
-        function computeSeries(targets, params) {
+        function computeSeries(targets, params, coarse = false) {
             const startYear = 1800;
-            const yearStep = Math.max(1, Math.round((params.yearEnd - startYear) / 420));
-            const timingContext = buildTimingContext(params);
+            const yearStep = Math.max(1, Math.round((params.yearEnd - startYear) / (coarse ? 60 : 420)));
+            const continuousContext = buildContinuousTimingContext(params);
+            const synchronizationContext = buildSynchronizationTimingContext(params);
             const baseWeight = drakeSparseWeight(params, targets.length);
             const series = [];
 
+            const step = coarse ? 8 : Math.max(1, Math.round(params.analysisTargetStep || 1));
+            const subTargets = [];
+            for (let i = 0; i < targets.length; i += step) {
+                subTargets.push(targets[i]);
+            }
+
             for (let year = startYear; year <= params.yearEnd; year += yearStep) {
                 let noDetection = 1;
+                let noDetectionSynchronized = 1;
                 let expectedSources = 0;
+                let expectedSynchronizedSources = 0;
 
-                for (const target of targets) {
+                for (let i = 0; i < subTargets.length; i++) {
+                    const target = subTargets[i];
                     const emitYear = year - target.distance_ly;
-                    const activeProbability = activeProbabilityAt(emitYear, params, timingContext);
+                    const continuousActiveProbability = activeProbabilityAt(emitYear, params, continuousContext);
+                    const synchronizedActiveProbability = activeProbabilityAt(emitYear, params, synchronizationContext);
+                    const observability = observabilityWeight(target, params) * observationEpochWeight(year, target, params);
                     const p = clamp(
                         baseWeight
-                        * activeProbability
-                        * observabilityWeight(target, params)
-                        * observationEpochWeight(year, target, params),
+                        * continuousActiveProbability
+                        * observability,
+                        0,
+                        0.95
+                    );
+                    const pSynchronized = clamp(
+                        baseWeight
+                        * synchronizedActiveProbability
+                        * observability,
                         0,
                         0.95
                     );
                     noDetection *= 1 - p;
+                    noDetectionSynchronized *= 1 - pSynchronized;
                     expectedSources += p;
+                    expectedSynchronizedSources += pSynchronized;
                 }
 
+                const probability = 1 - Math.pow(noDetection, step);
+                const windowLimitedProbability = 1 - Math.pow(noDetectionSynchronized, step);
                 series.push({
                     year,
-                    probability: 1 - noDetection,
-                    expectedSources
+                    probability,
+                    expectedSources: expectedSources * step,
+                    windowLimitedProbability,
+                    windowLimitedExpectedSources: expectedSynchronizedSources * step,
+                    synchronizationLoss: probability > 0 ? clamp((probability - windowLimitedProbability) / probability, 0, 1) : 0
                 });
             }
 
             return { series, baseWeight };
         }
 
-        function uncertaintyScenarios(params) {
-            const spread = params.uncertaintySpread;
-            if (spread <= 0) return [params];
-            const factors = [0.05, 0.2, 0.35, 0.5, 0.65, 0.8, 0.95].map(q => Math.exp((q - 0.5) * 2.7 * spread));
-            return factors.map((factor, index) => {
+        function computeHistogram(targets, params, coarse = false) {
+            const binSize = 50;
+            const timingContext = buildTimingContext(params);
+            const start = 1800;
+            const end = params.yearEnd;
+            const bins = [];
+
+            const step = coarse ? 8 : 1;
+            const subTargets = [];
+            for (let i = 0; i < targets.length; i += step) {
+                subTargets.push(targets[i]);
+            }
+
+            for (let year = start; year <= end; year += binSize) {
+                let density = 0;
+                for (let i = 0; i < subTargets.length; i++) {
+                    const target = subTargets[i];
+                    const receiveYear = year + binSize / 2;
+                    density += arrivalDensityAt(receiveYear, target, params, timingContext)
+                        * observabilityWeight(target, params)
+                        * observationEpochWeight(receiveYear, target, params);
+                }
+                bins.push({ year, density: density * step });
+            }
+
+            const total = bins.reduce((sum, bin) => sum + bin.density, 0) || 1;
+            bins.forEach(bin => bin.density /= total);
+            return bins;
+        }
+
+        function computeUncertaintyBand(targets, params, baselineSeries) {
+            const spread = Number(params.uncertaintySpread) || 0;
+            if (spread <= 0) {
+                return baselineSeries.map(row => ({
+                    year: row.year,
+                    low: row.probability,
+                    high: row.probability
+                }));
+            }
+
+            const analysisTargetStep = Math.max(1, Math.ceil(targets.length / 20));
+            const factors = [0.05, 0.2, 0.35, 0.5, 0.65, 0.8, 0.95]
+                .map(q => Math.exp((q - 0.5) * 2.7 * spread));
+            const scenarioSeries = factors.map((factor, index) => {
                 const inverse = factors[factors.length - 1 - index];
-                const logitShift = Math.log(factor) * 2.0; // Sample over/under estimation of completeness
-                return {
+                const scenario = {
                     ...params,
                     fl: clamp(params.fl * factor, 0.001, 1),
                     fi: clamp(params.fi * inverse, 0.001, 1),
                     fc: clamp(params.fc * factor, 0.001, 1),
-                    lPrior: clamp(params.lPrior * inverse, 100, 10000),
-                    tActive: clamp(params.tActive * inverse, 0, 5000),
-                    tLeakage: clamp(params.tLeakage * inverse, 0, 2000),
-                    catalogLogitShift: logitShift
+                    lPrior: clamp(params.lPrior * inverse, 25, 5000),
+                    analysisTargetStep,
+                    catalogLogitShift: (index - (factors.length - 1) / 2) * spread
                 };
+                return computeSeries(targets, scenario, false).series;
             });
-        }
 
-        function computeUncertaintyBand(targets, params, baselineSeries) {
-            const scenarios = uncertaintyScenarios(params);
-            if (scenarios.length === 1) {
-                return baselineSeries.map(row => ({ year: row.year, low: row.probability, high: row.probability }));
-            }
-            const scenarioSeries = scenarios.map(scenario => computeSeries(targets, scenario).series);
-            return baselineSeries.map((row, rowIndex) => {
+            return baselineSeries.map((row, index) => {
                 const values = scenarioSeries
-                    .map(series => series[rowIndex]?.probability ?? 0)
+                    .map(series => series[index]?.probability)
+                    .filter(Number.isFinite)
                     .sort((a, b) => a - b);
                 return {
                     year: row.year,
@@ -1098,82 +1178,110 @@
             });
         }
 
-        function peakSummary(series) {
-            const peak = series.reduce((best, row) => row.probability > best.probability ? row : best, series[0]);
-            return { probability: peak.probability, year: peak.year };
+        function peakOf(series) {
+            return series.reduce((best, row) => row.probability > best.probability ? row : best, series[0]);
         }
 
-        function perturbParam(params, id, direction) {
-            const next = { ...params };
+        function probabilityAtYear(targets, params, year) {
+            const continuousContext = buildContinuousTimingContext(params);
+            const baseWeight = drakeSparseWeight(params, targets.length);
+            const step = Math.max(1, Math.round(params.analysisTargetStep || 1));
+            let noDetection = 1;
+
+            for (let i = 0; i < targets.length; i += step) {
+                const target = targets[i];
+                const emitYear = year - target.distance_ly;
+                const activeProbability = activeProbabilityAt(emitYear, params, continuousContext);
+                const observability = observabilityWeight(target, params) * observationEpochWeight(year, target, params);
+                const p = clamp(baseWeight * activeProbability * observability, 0, 0.95);
+                noDetection *= 1 - p;
+            }
+
+            return 1 - Math.pow(noDetection, step);
+        }
+
+        function localPeakAround(targets, params, centerYear) {
+            const span = Math.max(200, Math.round((params.yearEnd - 1800) / 30));
+            const candidates = [
+                centerYear - span,
+                centerYear - span / 2,
+                centerYear,
+                centerYear + span / 2,
+                centerYear + span
+            ]
+                .map(year => clamp(Math.round(year), 1800, params.yearEnd))
+                .filter((year, index, years) => years.indexOf(year) === index);
+            return candidates
+                .map(year => ({ year, probability: probabilityAtYear(targets, params, year) }))
+                .reduce((best, row) => row.probability > best.probability ? row : best);
+        }
+
+        function perturbParams(params, key, direction) {
+            const scenario = { ...params };
             const ranges = {
-                fl: [0.001, 1], fi: [0.001, 1], fc: [0.001, 1],
-                lPrior: [100, 10000], tActive: [0, 5000], tLeakage: [0, 2000],
-                selectionBias: [0, 1],
-                beamCoverage: [0.01, 1], dutyCycle: [0.01, 1],
-                earthObsTimeLog: [-6, 0],
-                freqCoverage: [0.01, 1],
-                maxPower: [12, 22], rolloff: [0.2, 3]
+                fl: [0.001, 1, 0.12],
+                fi: [0.001, 1, 0.12],
+                fc: [0.001, 1, 0.12],
+                lPrior: [25, 5000, params.lPrior * 0.35],
+                tActive: [25, 5000, params.tActive * 0.35],
+                tLeakage: [0, 5000, Math.max(params.tLeakage * 0.35, 25)],
+                selectionBias: [0, 1, 0.12],
+                beamCoverage: [0.01, 1, 0.12],
+                dutyCycle: [0.01, 1, 0.12],
+                freqCoverage: [0.01, 1, 0.12],
+                maxPower: [12, 22, 0.6],
+                rolloff: [0.2, 3, 0.25],
+                earthObsTimeLog: [-6, 0, 0.5]
             };
-            const [lo, hi] = ranges[id];
-            const value = params[id];
-            const delta = (id === "lPrior" || id === "tActive" || id === "tLeakage") ? value * 0.35 + 25 : id === "maxPower" ? 0.7 : id === "earthObsTimeLog" ? 0.5 : id === "rolloff" ? 0.25 : 0.12;
-            next[id] = clamp(value + direction * delta, lo, hi);
-            return next;
+            const [lo, hi, delta] = ranges[key];
+            scenario[key] = clamp(params[key] + direction * delta, lo, hi);
+            scenario.maxEffectivePowerW = Math.pow(10, scenario.maxPower);
+            return scenario;
         }
 
         function computeSensitivity(targets, params, baselineSeries) {
-            const baseline = peakSummary(baselineSeries);
-            const items = [
+            const baselinePeak = peakOf(baselineSeries);
+            const analysisTargetStep = Math.max(1, Math.ceil(targets.length / 20));
+            const assumptions = [
                 ["fl", "Life fraction"],
                 ["fi", "Intelligence fraction"],
                 ["fc", "Communicative fraction"],
                 ["lPrior", "Drake prior lifetime"],
-                ["tActive", "Active transmission time"],
-                ["tLeakage", "Leakage transmission time"],
+                ["tActive", "Active radio window"],
                 ["selectionBias", "Catalog selection bias"],
                 ["beamCoverage", "Beam coverage"],
-                ["dutyCycle", "Tx Duty cycle"],
-                ["earthObsTimeLog", "Earth obs. time"],
+                ["dutyCycle", "Duty cycle"],
                 ["freqCoverage", "Frequency coverage"],
                 ["maxPower", "Transmit power"],
-                ["rolloff", "Power rolloff"]
-            ].map(([id, label]) => {
-                const low = peakSummary(computeSeries(targets, perturbParam(params, id, -1)).series);
-                const high = peakSummary(computeSeries(targets, perturbParam(params, id, 1)).series);
-                const probabilityImpact = Math.max(Math.abs(low.probability - baseline.probability), Math.abs(high.probability - baseline.probability));
-                const yearImpact = Math.max(Math.abs(low.year - baseline.year), Math.abs(high.year - baseline.year));
+                ["earthObsTimeLog", "Earth observation time"]
+            ];
+
+            return assumptions.map(([key, label]) => {
+                const lowParams = {
+                    ...perturbParams(params, key, -1),
+                    analysisTargetStep
+                };
+                const highParams = {
+                    ...perturbParams(params, key, 1),
+                    analysisTargetStep
+                };
+                const lowPeak = localPeakAround(targets, lowParams, baselinePeak.year);
+                const highPeak = localPeakAround(targets, highParams, baselinePeak.year);
+                const probabilityImpact = Math.max(
+                    Math.abs(lowPeak.probability - baselinePeak.probability),
+                    Math.abs(highPeak.probability - baselinePeak.probability)
+                );
+                const yearImpact = Math.max(
+                    Math.abs(lowPeak.year - baselinePeak.year),
+                    Math.abs(highPeak.year - baselinePeak.year)
+                );
                 return {
-                    id,
                     label,
                     probabilityImpact,
                     yearImpact,
-                    score: probabilityImpact / Math.max(baseline.probability, 0.000001) + yearImpact / 1000
+                    score: probabilityImpact / Math.max(baselinePeak.probability, 1e-6) + yearImpact / 1000
                 };
-            });
-            return items.sort((a, b) => b.score - a.score).slice(0, 8);
-        }
-
-        function computeHistogram(targets, params) {
-            const binSize = 50;
-            const timingContext = buildTimingContext(params);
-            const start = 1800;
-            const end = params.yearEnd;
-            const bins = [];
-
-            for (let year = start; year <= end; year += binSize) {
-                let density = 0;
-                for (const target of targets) {
-                    const receiveYear = year + binSize / 2;
-                    density += arrivalDensityAt(receiveYear, target, params, timingContext)
-                        * observabilityWeight(target, params)
-                        * observationEpochWeight(receiveYear, target, params);
-                }
-                bins.push({ year, density });
-            }
-
-            const total = bins.reduce((sum, bin) => sum + bin.density, 0) || 1;
-            bins.forEach(bin => bin.density /= total);
-            return bins;
+            }).sort((a, b) => b.score - a.score);
         }
 
         function makeScale(domainMin, domainMax, rangeMin, rangeMax) {
@@ -1203,19 +1311,19 @@
             const height = 360;
             const pad = 52;
             const maxProbability = Math.max(...series.map(row => row.probability), ...band.map(row => row.high), 0.000001);
-            const maxExpected = Math.max(...series.map(row => row.expectedSources), 0.000001);
+            const maxWindowLimitedProbability = Math.max(...series.map(row => row.windowLimitedProbability), 0.000001);
             const minYear = series[0].year;
             const maxYear = series[series.length - 1].year;
             const x = makeScale(minYear, maxYear, pad, width - pad);
             const yProb = makeScale(0, maxProbability, height - pad, pad);
-            const yExpected = makeScale(0, maxExpected, height - pad, pad);
+            const yWindowLimited = makeScale(0, Math.max(maxProbability, maxWindowLimitedProbability), height - pad, pad);
             const peak = series.reduce((best, row) => row.probability > best.probability ? row : best, series[0]);
             const xTicks = [minYear, Math.round((minYear + maxYear) / 2), maxYear]
                 .map(value => ({ x: x(value), label: formatYear(value) }));
             const yTicks = [0, maxProbability / 2, maxProbability]
                 .map(value => ({ y: yProb(value), value }));
             const probPoints = series.map(row => `${x(row.year).toFixed(1)},${yProb(row.probability).toFixed(1)}`).join(" ");
-            const expectedPoints = series.map(row => `${x(row.year).toFixed(1)},${yExpected(row.expectedSources).toFixed(1)}`).join(" ");
+            const windowLimitedPoints = series.map(row => `${x(row.year).toFixed(1)},${yWindowLimited(row.windowLimitedProbability).toFixed(1)}`).join(" ");
             const highPoints = band.map(row => `${x(row.year).toFixed(1)},${yProb(row.high).toFixed(1)}`);
             const lowPoints = band.map(row => `${x(row.year).toFixed(1)},${yProb(row.low).toFixed(1)}`);
             const bandPolygon = band.length
@@ -1228,7 +1336,7 @@
                 ${drawAxes(els.probabilityChart, xTicks, yTicks, { width, height, pad }, value => `${(value * 100).toFixed(1)}%`)}
                 ${bandPolygon}
                 <polyline class="prob-line" points="${probPoints}" />
-                <polyline class="expected-line" points="${expectedPoints}" />
+                <polyline class="window-line" points="${windowLimitedPoints}" />
                 <circle class="peak-dot" cx="${x(peak.year).toFixed(1)}" cy="${yProb(peak.probability).toFixed(1)}" r="5" />
             `;
         }
@@ -1294,42 +1402,55 @@
             `).join("");
         }
 
-        function render() {
+        let isLastRenderCoarse = false;
+
+        function render(coarse = false) {
             const params = getParams();
             updateControlLabels(params);
             const targets = rawTargets.slice(0, params.targetCount);
             const started = performance.now();
-            const { series, baseWeight } = computeSeries(targets, params);
-            const histogram = computeHistogram(targets, params);
-            const band = computeUncertaintyBand(targets, params, series);
-            const sensitivity = computeSensitivity(targets, params, series);
-            latestSeries = series;
-            latestHistogram = histogram;
-            latestUncertaintyBand = band;
-            latestSensitivity = sensitivity;
-            latestBaseWeight = baseWeight;
+            
+            const { series, baseWeight } = computeSeries(targets, params, coarse);
+            const histogram = computeHistogram(targets, params, coarse);
+            
+            // Only compute heavy uncertainty scenarios and sensitivity rankings in fine mode
+            const band = coarse ? [] : computeUncertaintyBand(targets, params, series);
+            const sensitivity = coarse ? [] : computeSensitivity(targets, params, series);
+
+            isLastRenderCoarse = coarse;
+
+            if (!coarse) {
+                latestSeries = series;
+                latestHistogram = histogram;
+                latestUncertaintyBand = band;
+                latestSensitivity = sensitivity;
+                latestBaseWeight = baseWeight;
+            }
+
             const peak = series.reduce((best, row) => row.probability > best.probability ? row : best, series[0]);
             const histPeak = histogram.reduce((best, row) => row.density > best.density ? row : best, histogram[0]);
-            const peakBand = band.reduce((best, row) => Math.abs(row.year - peak.year) < Math.abs(best.year - peak.year) ? row : best, band[0]);
 
             els.peakProbability.textContent = formatProbability(peak.probability);
             els.peakYear.textContent = formatYear(peak.year);
             els.histPeakYear.textContent = formatYear(histPeak.year);
             els.drakeWeight.textContent = baseWeight.toFixed(5);
-            els.uncertaintyRange.textContent = `${formatProbability(peakBand.low)}-${formatProbability(peakBand.high)}`;
+            
+            if (!coarse) {
+                if (band.length > 0) {
+                    const peakBand = band.reduce((best, row) => Math.abs(row.year - peak.year) < Math.abs(best.year - peak.year) ? row : best, band[0]);
+                    els.uncertaintyRange.textContent = `${formatProbability(peakBand.low)}-${formatProbability(peakBand.high)}`;
+                } else {
+                    els.uncertaintyRange.textContent = "-";
+                }
+                updateSensitivityList(sensitivity);
+                updateTable(targets, params);
+            }
 
             drawProbabilityChart(series, band);
             drawHistogramChart(histogram);
-            updateSensitivityList(sensitivity);
-            updateTable(targets, params);
 
             const elapsed = Math.round(performance.now() - started);
-            els.status.textContent = `已使用蒙地卡羅方法抽樣 ${targets.length.toLocaleString()} 個篩選目標 耗時 ${elapsed} 毫秒`;
-        }
-
-        function scheduleRender() {
-            clearTimeout(renderTimer);
-            renderTimer = setTimeout(render, 35);
+            els.status.textContent = `已使用蒙地卡羅方法抽樣 ${targets.length.toLocaleString()} 個篩選目標 耗時 ${elapsed} 毫秒${coarse ? " (即時預覽)" : ""}`;
         }
 
         function resetControls() {
@@ -1337,14 +1458,17 @@
                 els[id].value = DEFAULTS[id];
             });
             els.useBlObservationTimes.checked = false;
-            render();
+            render(false);
         }
 
         function exportCsv() {
+            if (isLastRenderCoarse) {
+                render(false);
+            }
             if (!latestSeries.length) return;
             const rows = [
-                "year,probability_at_least_one_signal,expected_detectable_sources,probability_p05,probability_p95",
-                ...latestSeries.map((row, index) => `${row.year},${row.probability},${row.expectedSources},${latestUncertaintyBand[index]?.low ?? ""},${latestUncertaintyBand[index]?.high ?? ""}`)
+                "year,probability_at_least_one_signal,expected_detectable_sources,window_limited_probability,window_limited_expected_sources,synchronization_loss_fraction,probability_p05,probability_p95",
+                ...latestSeries.map((row, index) => `${row.year},${row.probability},${row.expectedSources},${row.windowLimitedProbability},${row.windowLimitedExpectedSources},${row.synchronizationLoss},${latestUncertaintyBand[index]?.low ?? ""},${latestUncertaintyBand[index]?.high ?? ""}`)
             ];
             const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
             const url = URL.createObjectURL(blob);
@@ -1358,7 +1482,7 @@
         }
 
         function generateStandaloneReport() {
-            render();
+            render(false);
             if (!latestSeries.length || !latestHistogram.length) return;
             const params = getParams();
             const targets = rawTargets.slice(0, params.targetCount);
@@ -1401,14 +1525,14 @@ body{margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif;line
 main{max-width:1100px;margin:auto;padding:32px 24px}
 h1{margin:0 0 8px;font-size:30px} h2{margin-top:30px}
 .meta,.note{color:#475569}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric{border:1px solid #cbd5e1;border-radius:8px;padding:12px;background:white}.metric strong{display:block;font-size:22px}
-table{border-collapse:collapse;width:100%;background:white}th,td{border:1px solid #cbd5e1;padding:8px;text-align:left}svg{width:100%;height:auto;background:#101827;border:1px solid #cbd5e1;border-radius:8px}.axis{stroke:#60717d;stroke-width:1}.grid-line{stroke:#334155;stroke-width:.7}.prob-line{fill:none;stroke:#57c7ff;stroke-width:3}.expected-line{fill:none;stroke:#ffbf69;stroke-width:2}.hist-bar{fill:#72dd8a;opacity:.76}.peak-dot{fill:#fff}.tick{fill:#cbd5e1;font-size:12px}
+table{border-collapse:collapse;width:100%;background:white}th,td{border:1px solid #cbd5e1;padding:8px;text-align:left}svg{width:100%;height:auto;background:#101827;border:1px solid #cbd5e1;border-radius:8px}.axis{stroke:#60717d;stroke-width:1}.grid-line{stroke:#334155;stroke-width:.7}.prob-line{fill:none;stroke:#57c7ff;stroke-width:3}.expected-line,.window-line{fill:none;stroke:#ffbf69;stroke-width:2}.hist-bar{fill:#72dd8a;opacity:.76}.peak-dot{fill:#fff}.tick{fill:#cbd5e1;font-size:12px}
 @media(max-width:800px){.grid{grid-template-columns:1fr}}
 </style>
 <main>
 <h1>Drake Signal Window Standalone Report</h1>
 <p class="meta">Exported ${escapeHtml(now)} from the interactive simulator. This file embeds the current assumptions, parameters, simulation results, charts, and target summary so it can be read without the rest of the project.</p>
 <h2>Premise And Scope</h2>
-<p>This simulator combines Drake-style occurrence factors, a selectable civilization development-time model, finite or distributed radio-communication windows, light-speed delay, and a soft detectability threshold. It is a scenario explorer, not an estimate of the actual number of extraterrestrial civilizations.</p>
+<p>This simulator combines Drake-style occurrence factors, a selectable civilization development-time model, light-speed delay, and a soft detectability threshold. It treats continuous emission as the primary observability layer, then keeps finite or distributed radio-communication windows as a separate synchronization hypothesis.</p>
 <p class="note">The probability curves are conditional on the selected catalog subset and parameter settings. Low probability means low observability under this model, not absence of civilizations.</p>
 <h2>Time-Axis Meaning</h2>
 <p>All years on the probability curve are <strong>Earth receive years</strong>. The model folds in light-speed delay for each target by evaluating the source activity at <strong>emitYear = receiveYear - distance_ly</strong>. Therefore a peak receive year such as ${escapeHtml(formatYear(peak.year))} means the year when Earth is most likely to receive at least one signal under this scenario, not the year when extraterrestrial civilizations most often transmit.</p>
@@ -1446,7 +1570,7 @@ table{border-collapse:collapse;width:100%;background:white}th,td{border:1px soli
 <h3>Hypothesis Coupling Model: ${escapeHtml(els.hypothesisCoupling.options[els.hypothesisCoupling.selectedIndex].text)}</h3>
 <p>The occurrence rates of life (fl) and intelligence (fi) are rarely independent. The selected coupling model dynamically restrains these factors. For example, a <em>Bottleneck model</em> enforces that even if life is common, intelligence remains exceptionally rare, whereas a <em>Strongly coupled</em> model shifts the probability of intelligence up if life is abundant. In the <em>Independent</em> model, fl and fi are sampled and evaluated without cross-restriction, allowing for optimistic scenarios where both life and intelligence are simultaneously highly abundant.</p>
 <h2>Timing, Window, and Observability Assumptions</h2>
-<p>The civilization development time model defines the delay from planetary birth to radio capability. The Normal baseline is retained for comparison, but the Log-normal option treats development time as right-skewed, as if many multiplicative biological factors compound.</p>
+<p>The civilization development time model defines the delay from planetary birth to radio capability. The Log-normal default treats development time as right-skewed, as if many multiplicative biological factors compound; the Normal option is retained for comparison.</p>
 <p>To avoid mathematical double-counting, the simulation strictly separates three timescales:</p>
 <ul>
     <li><strong>Drake Prior (L<sub>prior</sub>):</strong> Used exclusively to establish the sheer existence probability (sparse weight) of the civilization.</li>
@@ -1467,82 +1591,59 @@ table{border-collapse:collapse;width:100%;background:white}th,td{border:1px soli
 </section>
 <p><strong>Sparse Drake weight</strong> is a dimensionless per-target prior used inside this simulator. It is computed from the <strong>coupled</strong> Drake-factor product (Hypothesis Coupling is applied <em>before</em> calculating the final product) multiplied by the selected reference lifetime, then divided across the selected target catalog and clamped. In Open-ended mode this reference lifetime is deliberately separated from the activity-window assumption so the model does not turn an infinite communication window into an infinite Drake weight. It is not a yearly reception probability for Earth, not the probability for a specific named target, and not a summed probability over all targets by itself.</p>
 <h2>Probability By Year</h2>
-<p>The blue line is the annual probability that Earth receives at least one detectable signal from the selected target set. The orange line is the expected number of detectable sources contributing in that receive year. They are related but not identical: the probability curve collapses many independent source probabilities into an at-least-one event, while the expected-source curve keeps the additive source count scale.</p>
+<p>The blue line is the annual probability that Earth receives at least one detectable signal from the selected target set under continuous emission. The orange line applies the finite-window synchronization hypothesis; the gap between the two lines is the extra loss caused by timing overlap assumptions.</p>
 <p class="note">Observation epoch mode: ${params.useBlObservationTimes ? "Breakthrough Listen matched observation years only; unmatched targets contribute zero in this mode." : "Continuous scenario baseline; target table emission years use 2026 as the comparison epoch."}</p>
 ${probSvg}
 <h2>Arrival-Year Distribution</h2>
-<p>The histogram is a normalized relative density for likely receive years under the selected timing model, weighted by detectability. Its peak can differ from the probability-curve peak because the probability curve also includes radio-window overlap, sparse Drake weighting, and aggregation across all targets. In this export, the two peaks differ by about ${peakGap.toLocaleString()} years.</p>
+<p>The histogram is a normalized relative density for likely receive years under the selected timing model, weighted by detectability. It uses the selected log-normal, gamma, or normal model rather than forcing the first display to be normal. In this export, the histogram peak and probability peak differ by about ${peakGap.toLocaleString()} years.</p>
 ${histSvg}
-<h2>Physical Modeling &amp; Academic Background</h2>
-<div style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:16px;margin:16px 0;font-size:14px;color:#334155">
-    <h3 style="color:#0f172a;margin-top:0">1. Energy Constant K &amp; Minimum Flux F<sub>min</sub></h3>
-    <p>The required transmitter EIRP for detection is modeled as <code>P_required = K &times; d_ly^2</code> where <code>K = 1.12 &times; 10<sup>11</sup> W/ly<sup>2</sup></code>.</p>
-    <p>By free-space path loss, <code>P = 4&pi; &times; d<sup>2</sup> &times; F<sub>min</sub></code> (with 1 ly &approx; 9.4607e15 m), this K corresponds to a minimum detectable flux density threshold:</p>
-    <p style="text-align:center;font-family:monospace;font-weight:bold;color:#0f172a">F<sub>min</sub> = K / (4&pi; &times; (9.4607 &times; 10<sup>15</sup>)<sup>2</sup>) &approx; 10<sup>-22</sup> W/m<sup>2</sup></p>
-    <p>This matches Jansky-level SETI sensitivities (e.g., L-band SEFD &approx; 2 Jy, S/N = 10, bandwidth &approx; 10 kHz, integration time &approx; 300 s).</p>
-
-    <h3 style="color:#0f172a">2. Space Matching Radius (0.2&deg;)</h3>
-    <p>Exoplanet spatial alignment to Breakthrough Listen observations uses a 0.2&deg; (12 arcminutes) threshold. This matches the Half Power Beam Width (HPBW) or Field of View (FOV) of L-band radio telescopes (e.g., Parkes HPBW &approx; 14' = 0.23&deg;, GBT &approx; 9' = 0.15&deg;, FAST &approx; 3' = 0.05&deg;), ensuring the target sits within the primary beam.</p>
-
-    <h3 style="color:#0f172a">3. Kardashev Scale Classification</h3>
-    <p>Equivalent isotropic power classes map to the Kardashev scale: <code>K_scale = (log10(P) - 6) / 10</code>:</p>
-    <ul>
-        <li>Earth-level: P &le; 10<sup>14</sup> W (K_scale &le; 0.8)</li>
-        <li>Kardashev Type I: P &le; 10<sup>16</sup> W (K_scale &le; 1.0)</li>
-        <li>Interstellar-communication level: P &le; 10<sup>20</sup> W (K_scale &le; 1.4, a transition state between Type I and Type II)</li>
-        <li>Type II+: P &gt; 10<sup>20</sup> W (K_scale &gt; 1.4)</li>
-    </ul>
-
-    <h3 style="color:#0f172a">4. Hypothesis Coupling</h3>
-    <p>The coupling model dynamically links life fraction (fl) and intelligence fraction (fi) to represent astrobiological bottleneck debates:</p>
-    <ul>
-        <li><strong>Independent</strong>: fl and fi are decoupled.</li>
-        <li><strong>Weakly Coupled</strong>: fi' = fi &times; (fl / 0.1)<sup>0.5</sup></li>
-        <li><strong>Strongly Coupled</strong>: fi' = fi &times; (fl / 0.1)</li>
-        <li><strong>Bottleneck</strong>: Enforces fi' in [0.001, 0.01].</li>
-        <li><strong>Rare Intelligence</strong>: fl' = fl &times; 1.5, fi' = fi &times; 0.001 (abundant simple life, rare technology).</li>
-    </ul>
-
-    <h3 style="color:#0f172a">5. Dual Timescale Decoupling</h3>
-    <p>To model wavefront propagation, the civilization lifetime L is split into a <code>lPrior</code> (Drake prior occurrence probability) and <code>tActive + tLeakage</code> (physical broadcast duration). This prevents math double-counting and permits detecting remnants of extinct civilizations.</p>
-
-    <h3 style="color:#0f172a">6. Selection Bias Completeness Sigmoid</h3>
-    <p>Catalog completeness probability is modeled as: <code>p_catalog = sigmoid(2.5 - selectionBias &times; 0.02 &times; d + 2.0 &times; q)</code>, where d is distance and q is exoplanet data quality rating. This accounts for observational completeness biases against distant or poorly-characterized exoplanets.</p>
-</div>
-
 <h2>Sensitivity Ranking</h2>
-<p>This ranking perturbs one assumption at a time and measures the largest change in peak annual probability and peak receive year.</p>
 <table><thead><tr><th>Assumption</th><th>Peak probability impact</th><th>Peak-year impact</th></tr></thead><tbody>${sensitivityRows}</tbody></table>
-<h2>Top 20 Candidate Sources by Detectability Weight</h2>
-<table><thead><tr><th>Planet</th><th>Host</th><th>Distance ly</th><th>Required power W</th><th>Detectability weight</th><th>Observation epoch</th><th>Emission year</th></tr></thead><tbody>${targetRows}</tbody></table>
+<h2>Top Observable Targets</h2>
+<table><thead><tr><th>Planet</th><th>Host</th><th>Distance ly</th><th>Required power W</th><th>Weight</th><th>Observation epoch</th><th>Emission year</th></tr></thead><tbody>${targetRows}</tbody></table>
 </main>
 </html>`;
-            downloadTextFile("drake-signal-window-report.html", html);
+            downloadTextFile("drake-signal-window-standalone-report.html", html);
         }
 
-        numericIds.forEach(id => els[id].addEventListener("input", scheduleRender));
-        selectIds.forEach(id => els[id].addEventListener("change", render));
-        els.useBlObservationTimes.addEventListener("change", render);
+        function scheduleRender() {
+            clearTimeout(renderTimer);
+            render(true);
+            renderTimer = setTimeout(() => render(false), 160);
+        }
+
+        numericIds.forEach(id => {
+            els[id].addEventListener("input", scheduleRender);
+            els[id].addEventListener("change", () => {
+                clearTimeout(renderTimer);
+                render(false);
+            });
+        });
+
+        selectIds.forEach(id => {
+            els[id].addEventListener("change", () => {
+                clearTimeout(renderTimer);
+                render(false);
+            });
+        });
+
+        els.useBlObservationTimes.addEventListener("change", () => {
+            clearTimeout(renderTimer);
+            render(false);
+        });
+
         document.getElementById("resetButton").addEventListener("click", resetControls);
         document.getElementById("exportButton").addEventListener("click", exportCsv);
         document.getElementById("reportButton").addEventListener("click", generateStandaloneReport);
-        document.getElementById("downloadMcButton").addEventListener("click", async () => {
-            try {
-                const res = await fetch("outputs/report.html");
-                if (!res.ok) throw new Error("Network response was not ok");
-                const html = await res.text();
-                downloadTextFile("drake-signal-window-monte-carlo-report.html", html);
-            } catch (err) {
-                // 註：若在本地以 file:/// 協議開啟，fetch 可能會遇到 CORS 限制，建議使用簡易 HTTP 伺服器打開此頁面。
-                els.status.textContent = "Could not download the static report directly; opening it in a new tab.";
-                window.open("outputs/report.html", "_blank");
-            }
+        document.getElementById("downloadMcButton").addEventListener("click", () => {
+            window.open("outputs/report.html", "_blank");
         });
 
         if (!rawTargets.length) {
             els.status.textContent = "No EXOPLANETS_DATA records were found in data.js.";
         } else {
-            render();
+            render(true);
+            renderTimer = setTimeout(() => render(false), 120);
         }
     </script>
 </body>

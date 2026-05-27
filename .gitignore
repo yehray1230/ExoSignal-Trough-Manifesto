@@ -1,7 +1,15 @@
 __pycache__/
 *.pyc
+科普投書用文章/
 
-# Keep generated front-end star tiles small. Put raw Gaia/HYG exports outside git.
+# GitHub Pages serves this project as static files. Keep the small front-end
+# datasets tracked, including data.js and data/**/*.json, so the deployed app
+# can load them without running Python.
+!data.js
+!data/**/*.json
+
+# Keep raw or bulky generated datasets out of git. Put raw Gaia/HYG exports
+# outside git or publish them separately if they are needed for reproducibility.
 data/raw/
 data/**/*.csv
 data/**/*.fits

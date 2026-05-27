@@ -7,7 +7,7 @@
         body { 
             margin: 0; 
             overflow: hidden; 
-            background-color: #030816; /* 深色宇宙背景 */
+            background-color: #030816; /* Deep space background */
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
         }
         canvas { display: block; }
@@ -71,6 +71,11 @@
             background: rgba(14, 116, 144, 0.18);
             font-size: 0.86rem;
             font-weight: 700;
+        }
+        button.nav-link {
+            width: 100%;
+            cursor: pointer;
+            font-family: inherit;
         }
         .nav-link:hover {
             background: rgba(14, 116, 144, 0.34);
@@ -359,6 +364,32 @@
             white-space: nowrap;
             font-weight: bold;
         }
+        .observation-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            color: #cbd5e1;
+            font-size: 0.82rem;
+            line-height: 1.3;
+            cursor: pointer;
+        }
+        .observation-toggle input {
+            width: 16px;
+            height: 16px;
+            accent-color: #38bdf8;
+        }
+        .bl-badge {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: rgba(56, 189, 248, 0.16);
+            color: #67e8f9;
+            font-size: 0.68rem;
+            font-weight: 700;
+            border: 1px solid rgba(103, 232, 249, 0.28);
+        }
 
         /* Loading Screen */
         #loading {
@@ -370,18 +401,23 @@
     </style>
 </head>
 <body>
-    <div id="loading">載入星體資料中... Loading...</div>
+    <div id="loading">正在載入星圖資料... Loading...</div>
 
     <div id="ui-layer">
         <div class="glass-panel">
-            <h1 id="title-text">系外行星射電訊號偵測</h1>
+            <h1 id="title-text">系外行星訊號雷達</h1>
             <div id="premise-text" style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 12px; line-height: 1.4;"></div>
             <select id="lang-select">
                 <option value="zh">繁體中文</option>
                 <option value="en">English (US)</option>
                 <option value="ja">日本語</option>
             </select>
+            <label class="observation-toggle">
+                <input id="bl-observation-toggle" type="checkbox">
+                <span id="bl-observation-label">Use real BL observation times</span>
+            </label>
             <a class="nav-link" id="lab-link" href="selection-bias-lab.html">Open Selection Bias Lab</a>
+            <button class="nav-link" id="report-button" type="button">Export standalone report</button>
         </div>
         
         <div class="glass-panel planet-list" id="planet-list">
@@ -403,11 +439,11 @@
                 </div>
                 <div class="metric-box">
                     <div class="metric-value" id="metric-mundane">-</div>
-                    <div class="metric-label" id="metric-mundane-label">平庸文明可見</div>
+                    <div class="metric-label" id="metric-mundane-label">可見普通文明</div>
                 </div>
                 <div class="metric-box">
                     <div class="metric-value" id="metric-selected-class">-</div>
-                    <div class="metric-label" id="metric-selected-label">目前目標門檻</div>
+                    <div class="metric-label" id="metric-selected-label">已選門檻</div>
                 </div>
             </div>
 
@@ -420,15 +456,15 @@
                 <input id="sensitivity-slider" type="range" min="0" max="6" step="0.25" value="0">
             </div>
             <div class="control-row">
-                <div class="control-head"><span id="label-lead">平庸文明領先年數</span><strong id="value-lead">100 年</strong></div>
+                <div class="control-head"><span id="label-lead">普通文明領先年數</span><strong id="value-lead">100 年</strong></div>
                 <input id="lead-slider" type="range" min="25" max="1000" step="25" value="100">
             </div>
 
             <div class="funnel" aria-label="SETI threshold funnel">
                 <div class="funnel-row"><span id="funnel-total-label">全部目標</span><div class="funnel-track"><div class="funnel-fill" id="funnel-total"></div></div><strong id="funnel-total-value">-</strong></div>
                 <div class="funnel-row"><span id="funnel-time-label">時間可行</span><div class="funnel-track"><div class="funnel-fill" id="funnel-time"></div></div><strong id="funnel-time-value">-</strong></div>
-                <div class="funnel-row"><span id="funnel-energy-label">能量可達</span><div class="funnel-track"><div class="funnel-fill" id="funnel-energy"></div></div><strong id="funnel-energy-value">-</strong></div>
-                <div class="funnel-row"><span id="funnel-both-label">同時通過</span><div class="funnel-track"><div class="funnel-fill" id="funnel-both"></div></div><strong id="funnel-both-value">-</strong></div>
+                <div class="funnel-row"><span id="funnel-energy-label">能量可行</span><div class="funnel-track"><div class="funnel-fill" id="funnel-energy"></div></div><strong id="funnel-energy-value">-</strong></div>
+                <div class="funnel-row"><span id="funnel-both-label">兩者皆可</span><div class="funnel-track"><div class="funnel-fill" id="funnel-both"></div></div><strong id="funnel-both-value">-</strong></div>
             </div>
 
             <div class="legend-list" id="kardashev-legend"></div>
@@ -437,10 +473,11 @@
 
         <div class="glass-panel" id="info-panel">
             <h2 class="panel-title" id="target-panel-title">Selected Target Diagnostics</h2>
-            <div class="info-row"><span class="info-label" id="label-name">名稱</span><span class="info-value" id="val-name">-</span></div>
-            <div class="info-row"><span class="info-label" id="label-host">恆星</span><span class="info-value" id="val-host">-</span></div>
+            <div class="info-row"><span class="info-label" id="label-name">行星名稱</span><span class="info-value" id="val-name">-</span></div>
+            <div class="info-row"><span class="info-label" id="label-host">母星</span><span class="info-value" id="val-host">-</span></div>
             <div class="info-row"><span class="info-label" id="label-dist">距離</span><span class="info-value" id="val-dist">-</span></div>
             <div class="info-row"><span class="info-label" id="label-signal">訊號發出年份</span><span class="info-value" id="val-signal">-</span></div>
+            <div class="info-row"><span class="info-label" id="label-observation">觀測時間</span><span class="info-value" id="val-observation">-</span></div>
             <div class="info-row" style="border:none;"><span class="info-label" id="label-power">所需功率</span><span class="info-value" id="val-power">-</span></div>
             
             <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 15px;">
@@ -448,14 +485,14 @@
                     <canvas id="power-chart"></canvas>
                 </div>
                 <div id="eval-text" style="font-size: 0.85rem; margin-top: 15px; line-height: 1.5; font-weight: 500;"></div>
-                <a id="nasa-link" class="nasa-btn" href="#" target="_blank" rel="noopener noreferrer" style="display: none;">🔗 深入探索 (NASA 官方資料)</a>
+                <a id="nasa-link" class="nasa-btn" href="#" target="_blank" rel="noopener noreferrer" style="display: none;">在 NASA 開啟目標</a>
             </div>
         </div>
     </div>
 
     <div id="timeline-layer">
         <div id="timeline-panel">
-            <div id="timeline-title">當此訊號發射時的地球...</div>
+            <div id="timeline-title">這個訊號發出時的地球...</div>
             <div id="timeline-content"></div>
             
             <div id="timeline-bar-container" style="display: none; margin-bottom: 5px;">
@@ -464,7 +501,7 @@
                         <div class="time-axis"></div>
                         <!-- Earth Milestones dynamically generated -->
                         <div id="marker-tech" class="timeline-marker" style="left: 50%; z-index: 10;">
-                            <div id="opponent-label-top">對方所需技術</div>
+                            <div id="opponent-label-top">所需技術</div>
                             <div class="marker-dot"></div>
                             <div id="label-marker-tech"></div>
                         </div>
@@ -476,7 +513,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="data.js"></script>
+    <script src="data.js?v=bl-metadata"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
@@ -486,46 +523,52 @@
         // Language Data
         const i18n = {
             zh: {
-                title: "系外行星射電訊號偵測",
-                premise: "前提假設：如果我們現在 (2026年) 收到了外星訊號",
+                title: "系外行星訊號雷達",
+                premise: "假設：如果我們現在（2026）收到一個外星訊號",
                 ly: "光年",
                 name: "行星名稱",
-                host: "所屬恆星",
+                host: "母星",
                 dist: "距離",
                 signal: "訊號發出年份",
-                power: "通訊所需功率",
-                habitable: " (潛在宜居)",
-                techEval1: "對方所需的發射功率為 ",
-                techEval2: " 瓦特 (焦耳/秒)，這相當於地球在西元 ",
-                techEval3: " 年的無線電技術水準。",
-                techBeyond: "此功率需求已超越地球現有水準，屬於第一型文明以上的領域。",
-                timelineTitle: "當此訊號發射時的地球...",
-                markerSignal: "訊號發射",
-                markerTech: "對方所需水準",
-                techWait1: "距地球發展出同等無線電技術 (西元 ",
-                techWait2: " 年) 還有 ",
+                power: "所需功率 (W)",
+                observation: "觀測時間",
+                observationToggle: "使用真實 BL 觀測時間",
+                observationBaseline: "2026 baseline",
+                observationMissing: "未匹配 BL metadata，使用 2026 baseline",
+                observationSummary: "BL {year}；{count} 組觀測；{telescopes}",
+                blObserved: "BL觀測",
+                habitable: " (宜居候選)",
+                techEval1: "所需等向輻射功率為 ",
+                techEval2: " W，約相當於地球西元 ",
+                techEval3: " 年前後的無線電能力。",
+                techBeyond: "此功率需求超過目前地球能力，接近 I 型文明或更高等級。",
+                timelineTitle: "這個訊號發出時的地球...",
+                markerSignal: "訊號發出",
+                markerTech: "所需技術",
+                techWait1: "地球發展到等效無線電技術（西元 ",
+                techWait2: "）還需 ",
                 techWait3: " 年",
-                techAlready: "當時地球已掌握同等無線電技術 ",
+                techAlready: "地球已具備此無線電技術約 ",
                 techAlready2: " 年",
-                techBeyondBar: "無線電技術水準需求超越現代，無法估計等待時間",
-                evidenceTitle: "篩選假說證據",
+                techBeyondBar: "所需無線電技術超出目前時代，無法估算等待時間",
+                evidenceTitle: "選擇偏誤證據",
                 detectableMetric: "可偵測候選",
                 radiusMetric: "偵測半徑",
-                mundaneMetric: "平庸文明可見",
-                selectedMetric: "目前目標門檻",
+                mundaneMetric: "可見普通文明",
+                selectedMetric: "已選門檻",
                 transmitter: "假設發射功率",
                 sensitivity: "接收靈敏度增益",
-                lead: "平庸文明領先年數",
+                lead: "普通文明領先年數",
                 years: "年",
                 totalTargets: "全部目標",
                 timePass: "時間可行",
-                energyPass: "能量可達",
-                bothPass: "同時通過",
-                biasNote: "在這組參數下，多數普通文明即使存在也落在不可見區；被看見的樣本會偏向更古老、更高能量的來源。",
+                energyPass: "能量可行",
+                bothPass: "兩者皆可",
+                biasNote: "在這組參數下，即使普通文明存在，多數也仍不可見；觀測樣本會偏向更古老或更高能量的來源。",
                 visible: "可見",
                 of: "/",
-                labLink: "開啟篩選偏差實驗室",
-                targetPanelTitle: "選取目標診斷"
+                labLink: "開啟選擇偏誤實驗室",
+                targetPanelTitle: "已選目標診斷"
             },
             en: {
                 title: "Exoplanet Signal Radar",
@@ -536,11 +579,17 @@
                 dist: "Distance",
                 signal: "Signal Sent Year",
                 power: "Req. Power (W)",
-                habitable: " (Habitable)",
-                techEval1: "The required transmission power is ",
-                techEval2: " W (J/s), equivalent to Earth's technology in AD ",
-                techEval3: " in radio technology.",
-                techBeyond: "This power requirement exceeds current Earth capability, belonging to Type I civilization or above.",
+                observation: "Observation time",
+                observationToggle: "Use real BL observation times",
+                observationBaseline: "2026 baseline",
+                observationMissing: "No BL metadata match; using 2026 baseline",
+                observationSummary: "BL {year}; {count} groups; {telescopes}",
+                blObserved: "BL observed",
+                habitable: " (Habitable candidate)",
+                techEval1: "The required equivalent isotropic radiated power is ",
+                techEval2: " W, roughly comparable to Earth's radio capability around AD ",
+                techEval3: ".",
+                techBeyond: "This power requirement exceeds current Earth capability, approaching a Type I civilization or above.",
                 timelineTitle: "Earth when this signal was sent...",
                 markerSignal: "Signal Sent",
                 markerTech: "Required Tech",
@@ -549,7 +598,7 @@
                 techWait3: " years",
                 techAlready: "Earth already had this radio tech for ",
                 techAlready2: " years",
-                techBeyondBar: "Radio tech required is beyond current era, cannot estimate wait time",
+                techBeyondBar: "Radio tech required is beyond the current era; wait time cannot be estimated",
                 evidenceTitle: "Selection Bias Evidence",
                 detectableMetric: "Detectable candidates",
                 radiusMetric: "Detection radius",
@@ -570,46 +619,52 @@
                 targetPanelTitle: "Selected Target Diagnostics"
             },
             ja: {
-                title: "系外惑星電波信号レーダー",
-                premise: "前提：もし今（2026年）、地球外からの信号を受信したら",
+                title: "系外惑星シグナルレーダー",
+                premise: "仮定：いま（2026年）地球が異星からの信号を受け取った場合",
                 ly: "光年",
                 name: "惑星名",
                 host: "主星",
                 dist: "距離",
-                signal: "信号発信年",
+                signal: "信号送信年",
                 power: "必要電力 (W)",
-                habitable: " (居住可能)",
-                techEval1: "必要な送信電力は ",
-                techEval2: " W (ジュール/秒) であり、これは地球の西暦 ",
-                techEval3: " 年の無線電波技術水準に相当します。",
-                techBeyond: "この電力需要は現在の地球の技術水準を超えており、タイプI文明以上の領域に属します。",
-                timelineTitle: "この信号が発信された時の地球...",
-                markerSignal: "信号発信",
-                markerTech: "必要技術水準",
-                techWait1: "人類が同等の無線技術を開発するまで (西暦 ",
-                techWait2: " 年) あと ",
+                observation: "観測時刻",
+                observationToggle: "実際のBL観測時刻を使用",
+                observationBaseline: "2026 baseline",
+                observationMissing: "BL metadata未照合、2026 baselineを使用",
+                observationSummary: "BL {year}、{count}グループ、{telescopes}",
+                blObserved: "BL観測",
+                habitable: " (居住可能性候補)",
+                techEval1: "必要な等価等方放射電力は ",
+                techEval2: " W で、地球の無線技術では西暦 ",
+                techEval3: " 年ごろに相当します。",
+                techBeyond: "この電力要求は現在の地球能力を超え、I型文明以上に近い水準です。",
+                timelineTitle: "この信号が送られた時代の地球...",
+                markerSignal: "信号送信",
+                markerTech: "必要技術",
+                techWait1: "地球が同等の無線技術に達するまで（西暦 ",
+                techWait2: "）：",
                 techWait3: " 年",
-                techAlready: "人類はこの無線技術を既に ",
-                techAlready2: " 年間保有していました",
-                techBeyondBar: "現代を超越した無線技術のため、待機時間は見積もり不可",
+                techAlready: "地球はこの無線技術を約 ",
+                techAlready2: " 年前から持っています",
+                techBeyondBar: "必要な無線技術は現在を超えており、待機時間は推定できません",
                 evidenceTitle: "選択バイアスの証拠",
                 detectableMetric: "検出可能候補",
                 radiusMetric: "検出半径",
-                mundaneMetric: "平凡文明の可視性",
-                selectedMetric: "現在目標の閾値",
+                mundaneMetric: "見える通常文明",
+                selectedMetric: "選択しきい値",
                 transmitter: "仮定送信電力",
                 sensitivity: "受信感度ゲイン",
-                lead: "平凡文明の先行年数",
+                lead: "通常文明の先行年数",
                 years: "年",
-                totalTargets: "全目標",
-                timePass: "時間的に可能",
-                energyPass: "エネルギー可能",
-                bothPass: "両方通過",
-                biasNote: "この条件では、普通の文明は存在しても多くが不可視です。観測される標本は、より古く高エネルギーな源へ偏ります。",
+                totalTargets: "全ターゲット",
+                timePass: "時間条件内",
+                energyPass: "エネルギー条件内",
+                bothPass: "両条件内",
+                biasNote: "この条件では、通常文明が存在しても多くは見えません。観測サンプルは古い、または高エネルギーの発信源に偏ります。",
                 visible: "可視",
                 of: "/",
                 labLink: "選択バイアス実験室を開く",
-                targetPanelTitle: "選択目標の診断"
+                targetPanelTitle: "選択ターゲット診断"
             }
         };
 
@@ -635,27 +690,27 @@
         ];
 
         const earthHistoryTimeline = [
-            { year: 2021, text: { zh: "【約 2021 年】詹姆斯·韋伯太空望遠鏡升空；生成式 AI 爆發；人類著手重返月球。", en: "[~2021 AD] JWST launches; Generative AI explodes; humans prepare to return to the Moon.", ja: "【約 2021 年】JWST打ち上げ。生成AIが爆発的に普及し、人類は月への帰還を計画。" } },
-            { year: 2010, text: { zh: "【約 2010 年】智慧型手機普及；CRISPR 基因編輯技術獲重大突破。", en: "[~2010 AD] Smartphones popularize; CRISPR genetic editing breakthrough.", ja: "【約 2010 年】スマートフォンの普及。CRISPRゲノム編集技術が躍進。" } },
-            { year: 1990, text: { zh: "【約 1990 年】全球資訊網 (WWW) 誕生；人類基因組計畫正式啟動。", en: "[~1990 AD] World Wide Web created; Human Genome Project begins.", ja: "【約 1990 年】WWW誕生。ヒトゲノム計画が正式に開始される。" } },
-            { year: 1970, text: { zh: "【約 1970 年】阿波羅計畫登月成功；航海家號探測器發射，探索外太陽系。", en: "[~1970 AD] Apollo moon landings; Voyager probes launched to outer solar system.", ja: "【約 1970 年】アポロ計画で月面着陸。ボイジャー探査機が外太陽系へ打ち上げられる。" } },
-            { year: 1950, text: { zh: "【約 1950 年】DNA 雙股螺旋結構被發現；美蘇冷戰與太空競賽揭幕。", en: "[~1950 AD] DNA double helix discovered; Space Race begins.", ja: "【約 1950 年】DNAの二重らせん構造が発見され、宇宙開発競争が幕を開ける。" } },
-            { year: 1930, text: { zh: "【約 1930 年】量子力學與相對論發展成熟；人類建立早期電波望遠鏡。", en: "[~1930 AD] Quantum mechanics matures; early radio telescopes built.", ja: "【約 1930 年】量子力学が成熟。初期の電波望遠鏡が建設される。" } },
-            { year: 1900, text: { zh: "【約 1900 年】萊特兄弟發明飛機；愛因斯坦提出狹義相對論，現代物理學起飛。", en: "[~1900 AD] Wright brothers invent airplane; Einstein proposes Special Relativity.", ja: "【約 1900 年】ライト兄弟が飛行機を発明。アインシュタインが特殊相対性理論を提唱。" } },
-            { year: 1800, text: { zh: "【約 1800 年】第一次工業革命如火如荼；蒸汽機與鐵路徹底改變人類社會。", en: "[~1800 AD] Industrial Revolution in full swing; steam engines transform society.", ja: "【約 1800 年】産業革命が進行中。蒸気機関と鉄道が人間社会を劇的に変える。" } },
-            { year: 1600, text: { zh: "【約 1600 年】科學革命展開；伽利略首次使用望遠鏡觀測星空，牛頓力學逐漸成形。", en: "[~1600 AD] Scientific Revolution; Galileo uses telescope; Newtonian mechanics forms.", ja: "【約 1600 年】科学革命。ガリレオが望遠鏡で星空を観測し、ニュートン力学が形成。" } },
-            { year: 1400, text: { zh: "【約 1400 年】歐洲文藝復興；古騰堡發明活字印刷術；大航海時代即將揭幕。", en: "[~1400 AD] Renaissance; Gutenberg printing press; Age of Discovery dawns.", ja: "【約 1400 年】ルネサンス。グーテンベルクが活版印刷を発明。大航海時代の幕開け。" } },
-            { year: 1000, text: { zh: "【約 1000 年】中世紀盛期；中國宋朝發明火藥與指南針，文明穩步發展。", en: "[~1000 AD] High Middle Ages; Song Dynasty invents gunpowder and compass.", ja: "【約 1000 年】中世盛期。中国の宋朝が火薬と羅針盤を発明。" } },
-            { year: 500, text: { zh: "【約 500 年】歐洲進入中世紀；中國隋唐帝國崛起；馬雅文明進入繁盛期。", en: "[~500 AD] Europe enters Middle Ages; Tang Dynasty rises; Maya civilization flourishes.", ja: "【約 500 年】ヨーロッパは中世へ。中国で隋唐帝国が台頭し、マヤ文明が繁栄。" } },
-            { year: 0, text: { zh: "【西元元年】古羅馬帝國進入全盛時期；漢朝統治中國；人類以肉眼觀測行星的軌跡。", en: "[0 AD] Roman Empire peaks; Han Dynasty rules China; naked-eye astronomy.", ja: "【西暦 1 年】ローマ帝国全盛期。中国は漢朝。人類は肉眼で惑星を観測。" } },
-            { year: -500, text: { zh: "【約西元前 500 年】軸心時代：古希臘哲學、佛教與儒家思想誕生，人類思想大躍進。", en: "[~500 BC] Axial Age: Greek philosophy, Buddhism, and Confucianism emerge.", ja: "【約 紀元前 500 年】枢軸時代。古代ギリシャ哲学、仏教、儒教が誕生。" } },
-            { year: -3000, text: { zh: "【約西元前 3000 年】人類進入青銅時代；古埃及、美索不達米亞發展出早期文字與曆法。", en: "[~3000 BC] Bronze Age; Egypt and Mesopotamia develop writing and calendars.", ja: "【約 紀元前 3000 年】青銅器時代。古代エジプトやメソポタミアで文字と暦が発達。" } },
-            { year: -10000, text: { zh: "【約西元前 1萬年】最後一次冰河期結束，農業革命爆發，人類開始建立最早的村落。", en: "[~10,000 BC] Last Ice Age ends, Agricultural Revolution begins, early villages form.", ja: "【約 紀元前 1 万年】最後の氷河期が終了。農業革命が起こり、初期の村落が形成される。" } },
-            { year: -200000, text: { zh: "【約 20萬年前】智人 (Homo sapiens) 在非洲崛起，並開始逐漸向全球遷徙。", en: "[~200,000 BC] Homo sapiens emerge in Africa and begin global migration.", ja: "【約 20 万年前】ホモ・サピエンスがアフリカで誕生し、次第に世界中へ移住。" } },
-            { year: -2000000, text: { zh: "【約 200萬年前】早期人科動物 (如巧人) 開始使用簡單打製石器。", en: "[~2 Million BC] Early hominins use simple stone tools.", ja: "【約 200 万年前】初期の人類が単純な石器を使い始める。" } },
-            { year: -65000000, text: { zh: "【約 6500萬年前】白堊紀-古近紀滅絕事件，恐龍滅絕，哺乳動物開始繁衍並統治地球。", en: "[~65 Million BC] Dinosaur extinction; mammals begin to dominate Earth.", ja: "【約 6500 万年前】恐竜が絶滅し、哺乳類が地球を支配し始める。" } },
-            { year: -500000000, text: { zh: "【約 5億年前】寒武紀大爆發，海洋中突然湧現大量複雜的多細胞生命。", en: "[~500 Million BC] Cambrian explosion; complex multicellular life bursts into the oceans.", ja: "【約 5 億年前】カンブリア爆発。複雑な多細胞生物が海中に突如として出現。" } },
-            { year: -3500000000, text: { zh: "【約 35億年前】地球上出現了最早的單細胞生命形式，生命開始在原始海洋中孕育。", en: "[~3.5 Billion BC] First single-celled life forms appear in primordial Earth oceans.", ja: "【約 35 億年前】地球上に最初の単細胞生物が出現し、原始の海で命が育まれる。" } }
+            { year: 2021, text: { zh: "[約西元 2021] JWST 發射；生成式 AI 快速發展；人類準備重返月球。", en: "[~2021 AD] JWST launches; generative AI accelerates; humans prepare to return to the Moon.", ja: "[約2021年] JWSTが打ち上げられ、生成AIが急速に発展し、人類は月への帰還を準備します。" } },
+            { year: 2010, text: { zh: "[約西元 2010] 智慧型手機普及；CRISPR 基因編輯取得突破。", en: "[~2010 AD] Smartphones popularize; CRISPR genetic editing breaks through.", ja: "[約2010年] スマートフォンが普及し、CRISPR遺伝子編集が進展します。" } },
+            { year: 1990, text: { zh: "[約西元 1990] 全球資訊網誕生；人類基因組計畫啟動。", en: "[~1990 AD] The World Wide Web is created; the Human Genome Project begins.", ja: "[約1990年] World Wide Webが生まれ、ヒトゲノム計画が始まります。" } },
+            { year: 1970, text: { zh: "[約西元 1970] 阿波羅登月；航海家探測器飛向外太陽系。", en: "[~1970 AD] Apollo moon landings; Voyager probes launch toward the outer Solar System.", ja: "[約1970年] アポロ計画の月面着陸と、ボイジャー探査機の打ち上げ。" } },
+            { year: 1950, text: { zh: "[約西元 1950] DNA 雙螺旋被發現；太空競賽開始。", en: "[~1950 AD] DNA's double helix is discovered; the Space Race begins.", ja: "[約1950年] DNA二重らせんが発見され、宇宙開発競争が始まります。" } },
+            { year: 1930, text: { zh: "[約西元 1930] 量子力學成熟；早期電波望遠鏡出現。", en: "[~1930 AD] Quantum mechanics matures; early radio telescopes appear.", ja: "[約1930年] 量子力学が成熟し、初期の電波望遠鏡が現れます。" } },
+            { year: 1900, text: { zh: "[約西元 1900] 飛機發明；相對論改變人類對時空的理解。", en: "[~1900 AD] Airplanes are invented; relativity reshapes ideas of space and time.", ja: "[約1900年] 飛行機が発明され、相対論が時空観を変えます。" } },
+            { year: 1800, text: { zh: "[約西元 1800] 工業革命推進蒸汽與機械化社會。", en: "[~1800 AD] The Industrial Revolution transforms society with steam power and machines.", ja: "[約1800年] 産業革命が蒸気機関と機械化で社会を変えます。" } },
+            { year: 1600, text: { zh: "[約西元 1600] 科學革命；望遠鏡與牛頓力學改寫宇宙觀。", en: "[~1600 AD] The Scientific Revolution; telescopes and Newtonian mechanics reshape astronomy.", ja: "[約1600年] 科学革命、望遠鏡、ニュートン力学が宇宙観を変えます。" } },
+            { year: 1400, text: { zh: "[約西元 1400] 文藝復興、印刷術與大航海時代展開。", en: "[~1400 AD] Renaissance, printing press, and the Age of Discovery unfold.", ja: "[約1400年] ルネサンス、印刷術、大航海時代が広がります。" } },
+            { year: 1000, text: { zh: "[約西元 1000] 中世盛期；火藥、羅盤與城市網絡擴張。", en: "[~1000 AD] High Middle Ages; gunpowder, compass, and urban networks expand.", ja: "[約1000年] 中世盛期、火薬や羅針盤、都市ネットワークが広がります。" } },
+            { year: 500, text: { zh: "[約西元 500] 歐洲進入中世紀；亞洲與美洲多個文明發展。", en: "[~500 AD] Europe enters the Middle Ages; major civilizations develop across Asia and the Americas.", ja: "[約500年] 欧州は中世へ入り、アジアやアメリカ大陸で文明が発展します。" } },
+            { year: 0, text: { zh: "[約西元 0] 羅馬與漢帝國鼎盛；天文仍以肉眼觀測為主。", en: "[~0 AD] Roman and Han empires flourish; astronomy remains mostly naked-eye observation.", ja: "[約紀元0年] ローマと漢が栄え、天文学は主に肉眼観測でした。" } },
+            { year: -500, text: { zh: "[約西元前 500] 軸心時代；哲學與宗教思想在多地興起。", en: "[~500 BC] Axial Age; philosophy and religious traditions emerge across cultures.", ja: "[紀元前約500年] 枢軸時代、哲学と宗教思想が各地で生まれます。" } },
+            { year: -3000, text: { zh: "[約西元前 3000] 青銅時代；文字、曆法與早期國家形成。", en: "[~3000 BC] Bronze Age; writing, calendars, and early states form.", ja: "[紀元前約3000年] 青銅器時代、文字、暦、初期国家が形成されます。" } },
+            { year: -10000, text: { zh: "[約西元前 10000] 冰河期結束；農業革命與定居聚落開始。", en: "[~10,000 BC] Last Ice Age ends; agriculture and settled villages begin.", ja: "[紀元前約10000年] 最終氷期が終わり、農業と定住集落が始まります。" } },
+            { year: -200000, text: { zh: "[約 20 萬年前] 智人出現並開始向全球遷徙。", en: "[~200,000 years ago] Homo sapiens emerge and begin global migration.", ja: "[約20万年前] ホモ・サピエンスが現れ、世界へ広がり始めます。" } },
+            { year: -2000000, text: { zh: "[約 200 萬年前] 早期人族使用簡單石器。", en: "[~2 million years ago] Early hominins use simple stone tools.", ja: "[約200万年前] 初期人類が簡単な石器を使います。" } },
+            { year: -65000000, text: { zh: "[約 6500 萬年前] 恐龍滅絕；哺乳類開始占據更多生態位。", en: "[~65 million years ago] Dinosaur extinction; mammals begin to occupy more ecological niches.", ja: "[約6500万年前] 恐竜が絶滅し、哺乳類が多くの生態的地位を占め始めます。" } },
+            { year: -500000000, text: { zh: "[約 5 億年前] 寒武紀生命大爆發；複雜多細胞生命迅速多樣化。", en: "[~500 million years ago] Cambrian explosion; complex multicellular life diversifies rapidly.", ja: "[約5億年前] カンブリア爆発により複雑な多細胞生物が急速に多様化します。" } },
+            { year: -3500000000, text: { zh: "[約 35 億年前] 地球上最早生命跡象出現。", en: "[~3.5 billion years ago] The earliest signs of life appear on Earth.", ja: "[約35億年前] 地球上に最古級の生命の痕跡が現れます。" } }
         ];
 
         function getTimelineEvent(signalYear) {
@@ -769,7 +824,10 @@
             const titleText = document.getElementById('title-text');
             const premiseText = document.getElementById('premise-text');
             const langSelect = document.getElementById('lang-select');
+            const blObservationToggle = document.getElementById('bl-observation-toggle');
+            const blObservationLabel = document.getElementById('bl-observation-label');
             const labLink = document.getElementById('lab-link');
+            const reportButton = document.getElementById('report-button');
             const planetList = document.getElementById('planet-list');
             const infoPanel = document.getElementById('info-panel');
             const targetPanelTitle = document.getElementById('target-panel-title');
@@ -778,12 +836,14 @@
             const labelHost = document.getElementById('label-host');
             const labelDist = document.getElementById('label-dist');
             const labelSignal = document.getElementById('label-signal');
+            const labelObservation = document.getElementById('label-observation');
             const labelPower = document.getElementById('label-power');
             
             const valName = document.getElementById('val-name');
             const valHost = document.getElementById('val-host');
             const valDist = document.getElementById('val-dist');
             const valSignal = document.getElementById('val-signal');
+            const valObservation = document.getElementById('val-observation');
             const valPower = document.getElementById('val-power');
             const evalText = document.getElementById('eval-text');
             const nasaLink = document.getElementById('nasa-link');
@@ -901,7 +961,7 @@
             const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 3000);
             camera.position.set(0, 80, 200);
 
-            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setClearColor(0x030816, 1);
@@ -1021,9 +1081,9 @@
 
             const kardashevClasses = [
                 { id: 'earth', label: 'Earth', labelZh: '地球級', labelJa: '地球級', maxPower: 1e14, color: 0x38bdf8, css: '#38bdf8' },
-                { id: 'type1', label: 'Type I', labelZh: '第一型', labelJa: 'タイプI', maxPower: 1e16, color: 0x22c55e, css: '#22c55e' },
-                { id: 'interstellar', label: 'Interstellar', labelZh: '星際級', labelJa: '恒星間級', maxPower: 1e20, color: 0xfbbf24, css: '#fbbf24' },
-                { id: 'type2', label: 'Type II+', labelZh: '第二型+', labelJa: 'タイプII+', maxPower: Infinity, color: 0xf97316, css: '#f97316' }
+                { id: 'type1', label: 'Type I', labelZh: 'I 型文明', labelJa: 'I型文明', maxPower: 1e16, color: 0x22c55e, css: '#22c55e' },
+                { id: 'interstellar', label: 'Interstellar', labelZh: '星際級', labelJa: '星間級', maxPower: 1e20, color: 0xfbbf24, css: '#fbbf24' },
+                { id: 'type2', label: 'Type II+', labelZh: 'II 型以上', labelJa: 'II型以上', maxPower: Infinity, color: 0xf97316, css: '#f97316' }
             ];
 
             function getKardashevClass(power) {
@@ -1046,6 +1106,49 @@
                 return { transmitterPower, sensitivityGain, leadYears, effectivePower, radiusLy };
             }
 
+            function useBreakthroughObservationTime(target) {
+                return blObservationToggle.checked
+                    && target.bl_observed
+                    && Number.isFinite(target.bl_signal_year);
+            }
+
+            function getSignalYear(target) {
+                return useBreakthroughObservationTime(target) ? target.bl_signal_year : target.signal_year;
+            }
+
+            function getObservationSummary(target, txt) {
+                if (useBreakthroughObservationTime(target)) {
+                    const year = Math.floor(target.bl_latest_observed_year);
+                    const telescopes = (target.bl_telescopes || []).join(', ') || 'BL';
+                    return txt.observationSummary
+                        .replace('{year}', year)
+                        .replace('{count}', target.bl_observation_group_count || target.bl_observation_count || 1)
+                        .replace('{telescopes}', telescopes);
+                }
+                return target.bl_observed ? txt.observationBaseline : txt.observationMissing;
+            }
+
+            function getSkyPosition(target) {
+                const radius = Math.log10(Math.max(target.distance_ly, 1)) * 90;
+                if (Number.isFinite(target.ra) && Number.isFinite(target.dec)) {
+                    const ra = THREE.MathUtils.degToRad(target.ra);
+                    const dec = THREE.MathUtils.degToRad(target.dec);
+                    return new THREE.Vector3(
+                        radius * Math.cos(dec) * Math.cos(ra),
+                        radius * Math.sin(dec),
+                        radius * Math.cos(dec) * Math.sin(ra)
+                    );
+                }
+
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos((Math.random() * 2) - 1);
+                return new THREE.Vector3(
+                    radius * Math.sin(phi) * Math.cos(theta),
+                    radius * Math.sin(phi) * Math.sin(theta),
+                    radius * Math.cos(phi)
+                );
+            }
+
             const detectionShellGeo = new THREE.SphereGeometry(1, 48, 24);
             const detectionShellMat = new THREE.MeshBasicMaterial({
                 color: 0x38bdf8,
@@ -1062,33 +1165,21 @@
             const planetColor = new THREE.Color();
             
             data.forEach((p, index) => {
-                // 判斷是否為宜居行星
-                p.isHabitable = /Proxima Cen|TRAPPIST-1|LHS 1140|Kepler-186 f/i.test(p.pl_name) || /Proxima Cen/i.test(p.hostname);
+                p.isHabitable = Boolean(p.isHabitable);
                 
-                // 設定 NASA URL
+                // Attach NASA target URL when available.
                 const matchObj = nasaUrls.find(n => n.match.test(p.pl_name) || n.match.test(p.hostname));
-                if (matchObj) {
+                if (!p.nasaUrl && matchObj) {
                     p.nasaUrl = matchObj.url;
                 }
 
-                // 對數映射距離: 確保能裝下 4~1400 甚至更遠的距離 (light year)
-                const logDist = Math.log10(Math.max(p.distance_ly, 1));
-                const r = logDist * 90; // 將對數數值放大至 3D 空間半徑
-
-                // Random spherical coordinates
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos((Math.random() * 2) - 1);
-                
-                const x = r * Math.sin(phi) * Math.cos(theta);
-                const y = r * Math.sin(phi) * Math.sin(theta);
-                const z = r * Math.cos(phi);
-
+                // Classify required signal power for color and legend display.
                 p.kardashevClass = getKardashevClass(p.required_power_w);
                 planetColor.setHex(p.kardashevClass.color);
 
                 // Planet Group
                 const pGroup = new THREE.Group();
-                pGroup.position.set(x, y, z);
+                pGroup.position.copy(getSkyPosition(p));
                 
                 // Planet Sphere
                 const pGeo = new THREE.SphereGeometry(p.isHabitable ? 1.6 : 1.2, 16, 16);
@@ -1113,7 +1204,6 @@
                 });
                 pGroup.add(new THREE.Mesh(pGlowGeo, pGlowMat));
                 
-                // 若為宜居，增加閃爍特效的參考
                 if (p.isHabitable) {
                     pGroup.userData.isHabitable = true;
                     pGroup.userData.glowMesh = pGroup.children[1];
@@ -1143,11 +1233,10 @@
                     if (lang === 'en') return `BC ${Math.abs(year)}`;
                     if (lang === 'ja') return `紀元前 ${Math.abs(year)} 年`;
                     return `西元前 ${Math.abs(year)} 年`;
-                } else {
-                    if (lang === 'en') return `AD ${year}`;
-                    if (lang === 'ja') return `西暦 ${year} 年`;
-                    return `西元 ${year} 年`;
                 }
+                if (lang === 'en') return `AD ${year}`;
+                if (lang === 'ja') return `西暦 ${year} 年`;
+                return `西元 ${year} 年`;
             }
 
             function formatCompactPower(power) {
@@ -1231,6 +1320,136 @@
                 });
             }
 
+            function escapeHtml(value) {
+                return String(value ?? '').replace(/[&<>"']/g, char => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                }[char]));
+            }
+
+            function downloadTextFile(filename, html) {
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                URL.revokeObjectURL(url);
+            }
+
+            function generateStandaloneReport() {
+                const model = getDetectionModel();
+                const total = data.length;
+                const timeFeasible = data.filter(p => p.distance_ly <= model.leadYears).length;
+                const energyFeasible = data.filter(p => p.required_power_w <= model.effectivePower).length;
+                const bothFeasible = data.filter(p => p.distance_ly <= model.leadYears && p.required_power_w <= model.effectivePower).length;
+                const selected = activeIndex === -1 ? null : data[activeIndex];
+                const visibleTargets = data
+                    .filter(p => p.distance_ly <= model.leadYears && p.required_power_w <= model.effectivePower)
+                    .sort((a, b) => a.distance_ly - b.distance_ly)
+                    .slice(0, 20);
+                const exampleTarget = selected || visibleTargets[0] || data.slice().sort((a, b) => a.distance_ly - b.distance_ly)[0] || null;
+                const exampleNote = selected
+                    ? 'This target was selected in the interactive scene when the report was exported.'
+                    : (visibleTargets[0]
+                        ? 'No target was selected, so the report uses the nearest target that passes both current filters as a worked example.'
+                        : 'No target was selected and no target passes both filters, so the report uses the nearest catalog target as a worked example.');
+                const sceneImage = renderer.domElement.toDataURL('image/png');
+                const chartImage = powerChart.canvas.toDataURL('image/png');
+                const now = new Date().toISOString();
+                const selectedRows = exampleTarget ? `
+                    <tr><th>Example target</th><td>${escapeHtml(exampleTarget.pl_name)}</td></tr>
+                    <tr><th>Host star</th><td>${escapeHtml(exampleTarget.hostname)}</td></tr>
+                    <tr><th>Why this target appears</th><td>${escapeHtml(exampleNote)}</td></tr>
+                    <tr><th>Distance</th><td>${exampleTarget.distance_ly.toFixed(2)} light-years</td></tr>
+                    <tr><th>Observation epoch model</th><td>${escapeHtml(getObservationSummary(exampleTarget, i18n.en))}</td></tr>
+                    <tr><th>Estimated emission year</th><td>${escapeHtml(formatYear(Math.floor(getSignalYear(exampleTarget)), 'en'))}</td></tr>
+                    <tr><th>Required isotropic power</th><td>${escapeHtml(formatPower(exampleTarget.required_power_w))} W</td></tr>
+                ` : '<tr><th>Example target</th><td>No catalog target was available when the report was exported.</td></tr>';
+                const targetRows = visibleTargets.map(target => `
+                    <tr>
+                        <td>${escapeHtml(target.pl_name)}</td>
+                        <td>${escapeHtml(target.hostname)}</td>
+                        <td>${target.distance_ly.toFixed(1)}</td>
+                        <td>${escapeHtml(formatPower(target.required_power_w))}</td>
+                        <td>${escapeHtml(getKardashevLabel(target.kardashevClass, 'en'))}</td>
+                    </tr>
+                `).join('');
+                const html = `<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Standalone Report - Exoplanet Signal Radar</title>
+<style>
+body{margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif;line-height:1.55}
+main{max-width:1100px;margin:auto;padding:32px 24px}
+h1{margin:0 0 8px;font-size:30px} h2{margin-top:30px}
+.meta,.note{color:#475569}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric{border:1px solid #cbd5e1;border-radius:8px;padding:12px;background:white}.metric strong{display:block;font-size:22px}
+table{border-collapse:collapse;width:100%;background:white}th,td{border:1px solid #cbd5e1;padding:8px;text-align:left}img{max-width:100%;border:1px solid #cbd5e1;border-radius:8px;background:#020617}
+@media(max-width:800px){.grid{grid-template-columns:1fr}}
+</style>
+<main>
+<h1>Exoplanet Signal Radar Standalone Report</h1>
+<p class="meta">Exported ${escapeHtml(now)} from the interactive 3D radar. This file embeds the current assumptions, parameters, results, and chart images so it can be read without the rest of the project.</p>
+<h2>Premise And Scope</h2>
+<p>This model asks which known exoplanet targets would be observable under a simplified radio-detection scenario. It is not a census of extraterrestrial civilizations. It combines light-speed delay, inverse-square attenuation, an assumed transmitter power, receiver sensitivity gain, and a mundane-civilization lead-time window.</p>
+<p class="note">Observation epoch mode: ${blObservationToggle.checked ? 'real Breakthrough Listen observation metadata when matched, otherwise 2026 baseline' : 'project-wide 2026 baseline'}.</p>
+<p class="note">Power thresholds are conceptual equivalent isotropic radiated power values using the project baseline P_required = 1.12e11 * distance_ly^2. A target filtered out here is observationally inaccessible under this scenario, not necessarily uninhabited.</p>
+<h2>How To Read The 3D Scene</h2>
+<p>The 3D view is a navigational visualization, not a true sky-coordinate map. Earth is placed at the origin. A target's radial distance from Earth is scaled from its light-year distance using a logarithmic visual mapping, while angular placement is arranged for legibility and should not be interpreted as right ascension, declination, or Galactic longitude. Color encodes the required transmission-power class, and the translucent shell marks the effective detection radius under the exported settings.</p>
+<h2>Current Parameters</h2>
+<table><tbody>
+<tr><th>Assumed transmitter power</th><td>${escapeHtml(formatCompactPower(model.transmitterPower))}</td></tr>
+<tr><th>Receiver sensitivity gain</th><td>${model.sensitivityGain.toLocaleString()}x</td></tr>
+<tr><th>Effective power threshold</th><td>${escapeHtml(formatCompactPower(model.effectivePower))}</td></tr>
+<tr><th>Mundane-civilization lead time</th><td>${model.leadYears.toLocaleString()} years</td></tr>
+<tr><th>Effective detection radius</th><td>${Math.round(model.radiusLy).toLocaleString()} light-years</td></tr>
+</tbody></table>
+<h2>Simulation Results</h2>
+<section class="grid">
+<div class="metric">Candidate targets<strong>${total.toLocaleString()}</strong></div>
+<div class="metric">Time-feasible<strong>${timeFeasible.toLocaleString()}</strong></div>
+<div class="metric">Energy-feasible<strong>${energyFeasible.toLocaleString()}</strong></div>
+<div class="metric">Jointly observable<strong>${bothFeasible.toLocaleString()}</strong></div>
+</section>
+<h2>Selected Target Diagnostics</h2>
+<table><tbody>${selectedRows}</tbody></table>
+<h2>3D Scene Snapshot</h2>
+<img alt="3D radar scene snapshot" src="${sceneImage}">
+<h2>Selected Target Power Chart</h2>
+<img alt="Target power chart" src="${chartImage}">
+<h2>Physical Modeling &amp; Academic Background</h2>
+<div style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:16px;margin:16px 0;font-size:14px;color:#334155">
+    <h3 style="color:#0f172a;margin-top:0">1. Energy Constant K &amp; Minimum Flux F<sub>min</sub></h3>
+    <p>The required transmitter EIRP for detection is modeled as <code>P_required = K &times; d_ly^2</code> where <code>K = 1.12 &times; 10<sup>11</sup> W/ly<sup>2</sup></code>.</p>
+    <p>By free-space path loss, <code>P = 4&pi; &times; d<sup>2</sup> &times; F<sub>min</sub></code> (with 1 ly &approx; 9.4607e15 m), this K corresponds to a minimum detectable flux density threshold:</p>
+    <p style="text-align:center;font-family:monospace;font-weight:bold;color:#0f172a">F<sub>min</sub> = K / (4&pi; &times; (9.4607 &times; 10<sup>15</sup>)<sup>2</sup>) &approx; 10<sup>-22</sup> W/m<sup>2</sup></p>
+    <p>This matches Jansky-level SETI sensitivities (e.g., L-band SEFD &approx; 2 Jy, S/N = 10, bandwidth &approx; 10 kHz, integration time &approx; 300 s).</p>
+
+    <h3 style="color:#0f172a">2. Space Matching Radius (0.2&deg;)</h3>
+    <p>Exoplanet spatial alignment to Breakthrough Listen observations uses a 0.2&deg; (12 arcminutes) threshold. This matches the Half Power Beam Width (HPBW) or Field of View (FOV) of L-band radio telescopes (e.g., Parkes HPBW &approx; 14' = 0.23&deg;, GBT &approx; 9' = 0.15&deg;, FAST &approx; 3' = 0.05&deg;), ensuring the target sits within the primary beam.</p>
+
+    <h3 style="color:#0f172a">3. Kardashev Scale Classification</h3>
+    <p>Equivalent isotropic power classes map to the Kardashev scale: <code>K_scale = (log10(P) - 6) / 10</code>:</p>
+    <ul>
+        <li>Earth-level: P &le; 10<sup>14</sup> W (K_scale &le; 0.8)</li>
+        <li>Kardashev Type I: P &le; 10<sup>16</sup> W (K_scale &le; 1.0)</li>
+        <li>Interstellar-communication level: P &le; 10<sup>20</sup> W (K_scale &le; 1.4, a transition state between Type I and Type II)</li>
+        <li>Type II+: P &gt; 10<sup>20</sup> W (K_scale &gt; 1.4)</li>
+    </ul>
+</div>
+
+<h2>Nearest Jointly Observable Targets</h2>
+<table><thead><tr><th>Planet</th><th>Host</th><th>Distance ly</th><th>Required power W</th><th>Class</th></tr></thead><tbody>${targetRows || '<tr><td colspan="5">No targets pass both filters under the exported settings.</td></tr>'}</tbody></table>
+</main>
+</html>`;
+                downloadTextFile('exoplanet-signal-radar-report.html', html);
+            }
+
             // Update UI Text
             function updateUI() {
                 const txt = i18n[currentLang];
@@ -1244,7 +1463,9 @@
                 labelHost.innerText = txt.host;
                 labelDist.innerText = txt.dist;
                 labelSignal.innerText = txt.signal;
+                labelObservation.innerText = txt.observation;
                 labelPower.innerText = txt.power;
+                blObservationLabel.innerText = txt.observationToggle;
                 
                 // Rebuild List
                 planetList.innerHTML = '';
@@ -1257,6 +1478,7 @@
                     nameDiv.className = 'planet-name';
                     nameDiv.innerHTML = p.pl_name
                         + `<span class="kardashev-badge" style="background:${p.kardashevClass.css}">${getKardashevLabel(p.kardashevClass)}</span>`
+                        + (p.bl_observed ? `<span class="bl-badge">${txt.blObserved}</span>` : "")
                         + (p.isHabitable ? `<span class="habitable-badge">${txt.habitable}</span>` : "");
                     
                     const distDiv = document.createElement('div');
@@ -1294,11 +1516,14 @@
                 infoPanel.style.display = 'block';
                 valName.innerHTML = p.pl_name
                     + `<span class="kardashev-badge" style="background:${p.kardashevClass.css}">${getKardashevLabel(p.kardashevClass)}</span>`
+                    + (p.bl_observed ? `<span class="bl-badge">${txt.blObserved}</span>` : "")
                     + (p.isHabitable ? `<span class="habitable-badge">${txt.habitable}</span>` : "");
                 valHost.innerText = p.hostname;
                 valDist.innerText = `${p.distance_ly.toFixed(2)} ${txt.ly}`;
-                valSignal.innerText = formatYear(Math.floor(p.signal_year), currentLang);
-                valPower.innerText = formatPower(p.required_power_w) + (currentLang === 'en' ? ' W (J/s)' : (currentLang === 'ja' ? ' W (ジュール/秒)' : ' 瓦特 (焦耳/秒)'));
+                const modeledSignalYear = getSignalYear(p);
+                valSignal.innerText = formatYear(Math.floor(modeledSignalYear), currentLang);
+                valObservation.innerText = getObservationSummary(p, txt);
+                valPower.innerText = formatPower(p.required_power_w) + (currentLang === 'en' ? ' W (J/s)' : (currentLang === 'ja' ? ' W（ジュール/秒）' : ' W（焦耳/秒）'));
 
                 // Update Chart Target Line
                 const targetData = [
@@ -1321,7 +1546,7 @@
                 // Timeline Event
                 timelinePanel.style.display = 'block';
                 timelineTitle.innerText = txt.timelineTitle;
-                const closestEvent = getTimelineEvent(p.signal_year);
+                const closestEvent = getTimelineEvent(modeledSignalYear);
                 typeWriter(timelineContent, closestEvent.text[currentLang] || closestEvent.text['zh']);
 
                 // Timeline Progress Bar logic
@@ -1342,8 +1567,9 @@
                         { year: 1920, name: { zh: "早期廣播", en: "Early Radio", ja: "初期ラジオ" } },
                         { year: 1950, name: { zh: "早期雷達", en: "Early Radar", ja: "初期レーダー" } },
                         { year: 1974, name: { zh: "阿雷西博", en: "Arecibo", ja: "アレシボ" } },
-                        { year: 2026, name: { zh: "深空網路", en: "DSN", ja: "深宇宙ネットワーク" } }
+                        { year: 2026, name: { zh: "深空網路", en: "DSN", ja: "深宇宙通信網" } }
                     ];
+
                     radioMilestones.forEach(m => {
                         const pos = ((m.year - 1800) / 300) * 100;
                         const marker = document.createElement('div');
@@ -1366,7 +1592,7 @@
                         { zh: "早期廣播", en: "Early Radio", ja: "初期ラジオ" },
                         { zh: "早期雷達", en: "Early Radar", ja: "初期レーダー" },
                         { zh: "阿雷西博", en: "Arecibo", ja: "アレシボ" },
-                        { zh: "深空網路", en: "DSN", ja: "深宇宙ネットワーク" }
+                        { zh: "深空網路", en: "DSN", ja: "深宇宙通信網" }
                     ];
                     const nameLabels = innerBar.querySelectorAll('.earth-marker-name');
                     nameLabels.forEach((lbl, idx) => {
@@ -1388,7 +1614,7 @@
                         labelMarkerTech.innerText = currentLang === 'zh' ? "未來" : (currentLang === 'ja' ? "未来" : "Future");
                         innerBar.style.transform = `translateX(calc(-${posPercent}%))`;
                     } else {
-                        const diffYears = Math.floor(eqYear - p.signal_year);
+                        const diffYears = Math.floor(eqYear - modeledSignalYear);
                         if (diffYears > 0) {
                             timelineCountdown.innerText = txt.techWait1 + eqYear + txt.techWait2 + diffYears + txt.techWait3;
                         } else {
@@ -1396,7 +1622,7 @@
                         }
                         const posPercent = ((eqYear - 1800) / 300) * 100;
                         markerTech.style.left = `${posPercent}%`;
-                        labelMarkerTech.innerText = `${eqYear} 年`;
+                        labelMarkerTech.innerText = formatYear(eqYear, currentLang);
                         innerBar.style.transform = `translateX(calc(-${posPercent}%))`;
                     }
                 }, 50);
@@ -1404,7 +1630,9 @@
                 // NASA Link
                 if (p.nasaUrl) {
                     nasaLink.href = p.nasaUrl;
-                    nasaLink.innerText = `🔗 深入探索 ${p.pl_name} (NASA 官方資料)`;
+                    nasaLink.innerText = currentLang === 'zh'
+                        ? `在 NASA 開啟 ${p.pl_name}`
+                        : (currentLang === 'ja' ? `NASAで ${p.pl_name} を開く` : `Open ${p.pl_name} on NASA`);
                     nasaLink.style.display = 'block';
                 } else {
                     nasaLink.style.display = 'none';
@@ -1479,6 +1707,11 @@
             [transmitterSlider, sensitivitySlider, leadSlider].forEach(slider => {
                 slider.addEventListener('input', updateEvidencePanel);
             });
+            blObservationToggle.addEventListener('change', () => {
+                updateUI();
+                if(activeIndex !== -1) selectPlanet(activeIndex);
+            });
+            reportButton.addEventListener('click', generateStandaloneReport);
 
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
@@ -1520,7 +1753,7 @@
                 realStarCore.rotation.y += 0.00001;
                 galaxyCoreGlow.scale.setScalar(1 + Math.sin(time * 0.0008) * 0.035);
 
-                // 宜居行星閃爍效果
+                // Pulse highlighted habitability-interest targets.
                 planetMeshes.forEach(pm => {
                     if (pm.group.userData.isHabitable) {
                         pm.group.userData.glowMesh.scale.setScalar(1 + Math.sin(time * 0.005 + pm.mesh.userData.index) * 0.1);

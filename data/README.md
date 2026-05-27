@@ -1,49 +1,57 @@
-# Star Catalog Data and Reproducibility Notes
+# Star And Exoplanet Catalog Data
 
-本目錄保存前端可直接載入的精簡星圖資料。專案刻意不提交大型原始星表，以避免儲存庫體積膨脹，並讓 GitHub 頁面與本機靜態伺服器都能穩定載入。
+This directory contains the compact star layers used by the 3D scene.
+The exoplanet target catalog is written to the project root as `data.js`
+because the static HTML app loads it directly.
 
-## 檔案說明 / Files
+## Files
 
-| 檔案 | 內容 | 性質 |
+| File | Purpose | Source |
 |---|---|---|
-| `stars-core.json` | 少量明亮命名恆星 | 手動整理的真實星體錨點 |
-| `stars-lod/lod1.json` | 第一層銀河點雲 | 由腳本生成的視覺化資料 |
+| `stars-core.json` | Compact real-star anchor layer with bright stars, nearby systems, and habitability-interest host stars. | Curated from common astronomical catalog values in `scripts/build_star_catalog.py`. |
+| `stars-lod/lod1.json` | Procedural background starfield for depth and visual density. | Reproducible deterministic generator in `scripts/build_star_catalog.py`. |
+| `bl-observations.json` | Lightweight Breakthrough Listen observation metadata grouped by target, telescope, MJD, frequency, and file type. | `scripts/fetch_breakthrough_listen.py` using the public Open Data Archive API. |
+| `../data.js` | Exoplanet target catalog consumed by the app. | NASA Exoplanet Archive TAP `pscomppars` table plus local interpretive annotations. |
 
-## 資料策略 / Data Strategy
+## Exoplanet Fields
 
-本專案採用分層式星圖策略：
+`fetch_exoplanets.py` now preserves the original distance fields used by the app and adds richer planet, host-star, and sky-position metadata:
 
-- 使用少量明亮實星作為可辨識的天文錨點。
-- 使用程序生成的 LOD 點雲呈現銀河尺度密度。
-- 在前端執行時補充遠場星點，以增加場景深度。
-- 將大型 Gaia、HYG、FITS、CSV 或壓縮原始資料排除在 Git 之外。
+| Field | Meaning |
+|---|---|
+| `pl_name`, `hostname` | Planet and host-star names. |
+| `sy_dist`, `distance_ly` | System distance in parsecs and light-years. |
+| `ra`, `dec` | Host-star sky position in degrees, used by the 3D visualization when available. |
+| `pl_orbper`, `pl_orbsmax` | Orbital period and semi-major axis. |
+| `pl_rade`, `pl_bmasse`, `pl_eqt` | Planet radius, mass, and equilibrium temperature when available. |
+| `st_spectype`, `st_teff`, `st_rad`, `st_mass` | Host-star spectral type and basic stellar parameters. |
+| `disc_year`, `discoverymethod` | Discovery year and method. |
+| `signal_year`, `required_power_w` | Project-derived light-travel and radio-power model fields. |
+| `bl_observed`, `bl_observation_count`, `bl_first_observed_year`, `bl_latest_observed_year`, `bl_signal_year` | Breakthrough Listen metadata fields. `bl_signal_year` uses the latest matched BL observation year minus light-travel distance, while `signal_year` keeps the project-wide 2026 baseline. |
+| `bl_telescopes`, `bl_file_types`, `bl_observations` | Compact observation provenance for matched targets. These are observation-window metadata, not detections of artificial signals. |
+| `isHabitable`, `target_priority`, `interest_tags`, `habitability_note` | Local annotations for well-known habitability or biosignature-interest targets. These are labels for prioritization and visualization, not claims of confirmed life. |
 
-這種做法犧牲完整星表精度，換取前端效能、儲存庫可攜性與 GitHub 顯示穩定性。
+## Regeneration
 
-## 再現方式 / Regeneration
+Refresh exoplanet data from NASA:
 
-重新產生精簡星圖資料：
+```bash
+python fetch_exoplanets.py
+```
+
+Refresh Breakthrough Listen observation metadata, then regenerate exoplanet data so the matched fields are embedded in `data.js`:
+
+```bash
+python scripts/fetch_breakthrough_listen.py
+python fetch_exoplanets.py
+```
+
+Regenerate the compact star layers:
 
 ```bash
 python scripts/build_star_catalog.py
 ```
 
-腳本會輸出：
+## Interpretation Limits
 
-```text
-data/stars-core.json
-data/stars-lod/lod1.json
-```
-
-## 大型星表建議 / Large Catalog Policy
-
-若未來整合 Gaia、HYG 或其他大型星表，建議採用以下流程：
-
-1. 將原始資料放置於 Git 忽略路徑，例如 `data/raw/`。
-2. 以離線腳本轉換成前端可載入的分塊 LOD 檔案。
-3. 將大型輸出放在 GitHub Release、物件儲存或 CDN。
-4. 在文件中記錄資料版本、查詢條件、轉換腳本與產生日期。
-
-## 解讀限制 / Interpretation Limits
-
-目前星圖層主要用於建立視覺尺度與空間脈絡，不應被視為完整天體測量資料庫。若研究問題需要精確星體位置、亮度、光譜型或選樣函數，應回到原始天文資料庫並建立可追溯的資料處理流程。
+The project marks targets such as Proxima Cen b, TRAPPIST-1 e/f/g, LHS 1140 b, Kepler-186 f, Kepler-442 b, Kepler-452 b, K2-18 b, and similar objects as habitability-interest targets because they are widely discussed as temperate, habitable-zone, terrestrial-size, or atmospheric follow-up candidates. This is a visualization and selection-bias aid, not a biological detection claim.

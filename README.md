@@ -196,6 +196,30 @@ http://127.0.0.1:8000/index.html
 
 若 Python 不在 `PATH` 中，也可使用任何能提供專案根目錄的靜態檔案伺服器。
 
+## GitHub Pages 部署 / GitHub Pages Deployment
+
+This repository is designed to be hosted as a static GitHub Pages site. No build step is required.
+
+Recommended Pages settings:
+
+```text
+Settings -> Pages -> Build and deployment
+Source: Deploy from a branch
+Branch: main
+Folder: / (root)
+```
+
+The deployed site must include the front-end data files that the browser loads at runtime:
+
+- `data.js`
+- `data/stars-core.json`
+- `data/stars-lod/lod1.json`
+- `data/bl-observations.json`
+
+These files are intentionally kept in git because GitHub Pages only serves committed static files; it does not run `fetch_exoplanets.py` or `scripts/build_star_catalog.py` during deployment. Large raw source datasets and bulky intermediate files should still stay out of git. The `.gitignore` keeps `data/raw/` and large generated formats such as CSV, FITS, Parquet, HDF5, archives, and compressed files excluded.
+
+The `.nojekyll` file disables Jekyll processing so GitHub Pages serves this project directly as plain HTML, JavaScript, JSON, and static assets.
+
 ## 重新產生資料 / Regenerating Data
 
 Fetch or refresh the exoplanet data:
