@@ -162,9 +162,13 @@ def detectability_weight(required_power_w: float, config: dict) -> float:
     if required_power_w <= 0:
         return 0.0
     log_ratio = math.log10(required_power_w / max_power)
-    # Logistic falloff in log-power space: near 1 below the assumed capability,
-    # near 0 when required power is many decades too high.
-    return 1.0 / (1.0 + math.exp(log_ratio / rolloff))
+    # Logistic falloff in log-power space with overflow safety
+    x = log_ratio / rolloff
+    if x > 100:
+        return 0.0
+    if x < -100:
+        return 1.0
+    return 1.0 / (1.0 + math.exp(x))
 
 
 def correlation_power_factor(config: dict) -> float:
@@ -787,7 +791,14 @@ def selected_timing_distribution(targets: list[Target], config: dict) -> list[di
     bin_size = max(int(scenario["histogram_bin_years"]), 1)
     start = int(config["observation_year_start"])
     end = int(config["observation_year_end"])
-    timing_context = build_timing_context(config)
+    
+    # Create a local copy of config and update civilization with the scenario parameters
+    local_config = clone_config(config)
+    for key, val in scenario.items():
+        if key != "histogram_bin_years":
+            local_config["civilization"][key] = val
+            
+    timing_context = build_timing_context(local_config)
     counts: dict[int, float] = {}
 
     for year in range(start, end + 1, bin_size):
@@ -795,9 +806,9 @@ def selected_timing_distribution(targets: list[Target], config: dict) -> list[di
         for target in targets:
             receive_year = year + bin_size / 2
             density += (
-                arrival_density_at(receive_year, target, config, timing_context)
-                * observability_weight(target, config)
-                * observation_epoch_weight(receive_year, target, config)
+                arrival_density_at(receive_year, target, local_config, timing_context)
+                * observability_weight(target, local_config)
+                * observation_epoch_weight(receive_year, target, local_config)
             )
         counts[year] = density
 
@@ -951,6 +962,8 @@ def write_html(
     peak_gap = abs(int(peak_series["year"]) - int(peak_dist["year_bin_start"]))
     communication = config["communication"]
     rigor = config.get("rigor", {})
+    bl_matched_targets = sum(1 for target in targets if target.bl_observed)
+    unobserved_targets = len(targets) - bl_matched_targets
     sensitivity_rows = "\n".join(
         f"<tr><td>{row['assumption']}</td><td>{row['peak_probability_impact']:.5f}</td><td>{row['peak_year_impact']:.0f} yr</td></tr>"
         for row in sensitivity[:8]
@@ -980,6 +993,10 @@ def write_html(
   th {{ color: #ffffff; background: #1b242b; }}
   rect {{ fill: #72dd8a; opacity: .76; }}
   .caption {{ color: #9facb7; font-size: 14px; }}
+  .assessment {{ background: #151c22; border: 1px solid #2d3a43; border-radius: 8px; padding: 18px; margin: 22px 0; }}
+  .assessment h3 {{ color: #57c7ff; margin: 18px 0 8px; }}
+  .assessment h3:first-child {{ margin-top: 0; }}
+  .assessment ul {{ margin: 8px 0 0 20px; padding: 0; }}
 </style>
 <main>
   <h1>德雷克方程與射電通信時間窗口推論</h1>
@@ -988,6 +1005,25 @@ def write_html(
   <p>This standalone report uses timing model <code>{timing_model}</code>. Years on the probability curve are Earth receive years; source activity is evaluated at <code>emit_year = receive_year - distance_ly</code>, so light-speed delay is already included.</p>
   <p>The blue curve is the first layer: observable civilizations under a continuous-emission assumption. The orange curve keeps the radio-window synchronization hypothesis and shows how much additional loss is introduced if emissions are finite or intermittent. The normal timing model is retained for comparison, while the default log-normal and gamma options are right-skewed alternatives for multiplicative development factors or prerequisite-accumulation processes.</p>
   <p>Rigor controls are enabled in this run: uncertainty spread <code>{float(rigor.get("uncertainty_spread", 0.0)):.2f}</code>, catalog selection bias <code>{float(rigor.get("catalog_selection_bias", 0.0)):.2f}</code>, beam coverage <code>{float(communication.get("beam_coverage", 1.0)):.2f}</code>, duty cycle <code>{float(communication.get("duty_cycle", 1.0)):.2f}</code>, frequency coverage <code>{float(communication.get("frequency_coverage", 1.0)):.2f}</code>, and assumption correlation <code>{float(rigor.get("assumption_correlation", 0.0)):.2f}</code>.</p>
+
+  <h2>數據正確性與真實世界代表性</h2>
+  <div class="assessment">
+    <h3>可以視為資料事實的部分</h3>
+    <p>本次報告使用的目標清單直接讀取專案根目錄的 <code>data.js</code>，其中系外行星名稱、宿主星、距離、天球座標、發現方法與部分行星/恆星參數，來自 NASA Exoplanet Archive 的 <code>pscomppars</code> 表；Breakthrough Listen 欄位則是用公開觀測資料做名稱或 <code>0.2&deg;</code> 角距離匹配。此設定下，模擬納入 <code>{len(targets):,}</code> 個最近目標，其中 <code>{bl_matched_targets:,}</code> 個有匹配到 Breakthrough Listen 觀測中繼資料，<code>{unobserved_targets:,}</code> 個沒有匹配到此類觀測紀錄。</p>
+    <p>因此，距離、目標識別與「是否曾被相近指向觀測」大致可作為資料驅動的輸入；但這些欄位仍受目錄版本、觀測選擇效應、名稱對應與座標匹配半徑影響，不等同於完整、無偏的銀河系樣本。</p>
+
+    <h3>屬於模型假設或衍生量的部分</h3>
+    <ul>
+      <li><code>required_power_w</code> 由 <code>P_required = 1.12e11 * distance_ly^2</code> 推導，用來表示在簡化窄頻射電門檻下所需的等效各向同性發射功率；它不是任何望遠鏡的官方靈敏度曲線。</li>
+      <li>Drake 方程參數、生命/智慧/通訊比例、文明出現時間、射電可見壽命、發射功率上限、beam coverage、duty cycle 與 frequency coverage 都是情境參數，不是已量測的天文事實。</li>
+      <li>Monte Carlo 區間只是在目前參數範圍內抽樣，反映「這組模型假設下的不確定性」，不能解讀成真實宇宙機率的統計信賴區間。</li>
+      <li>habitability-interest 標籤只表示該行星常被討論為宜居帶、類地、溫和或大氣後續觀測目標，不代表生命、智慧文明或人工訊號已被確認。</li>
+    </ul>
+
+    <h3>是否能代表真實世界</h3>
+    <p>這個模擬可以代表一個受控的「時間選擇效應」思想實驗：若已知系外行星目錄中的某些系統存在可通訊文明，且它們的發射功率、方向性、活動時間與觀測窗口符合設定，地球端在不同年份接收到訊號的相對分布會如何改變。它適合用來比較假設、檢查哪些參數最敏感，以及說明為什麼光速延遲、有限通訊窗口與觀測排程會讓搜尋結果偏向某些時間區間。</p>
+    <p>它不能代表真實世界中的絕對外星文明數量、外星生命存在機率、實際 SETI 偵測率，或任何單一目標是否有訊號。真實搜尋還需要完整的望遠鏡靈敏度、頻寬、積分時間、偏振、都卜勒漂移、射頻干擾排除、天空覆蓋、重複觀測排程、星際介質效應，以及尚未被發現的行星與恆星族群。換句話說，本報告的數值應解讀為「情境輸出與限制分析」，不是「宇宙真實答案」。</p>
+  </div>
 
   <section class="metric-row">
     <div class="metric">使用候選目標<strong>{len(targets):,}</strong></div>

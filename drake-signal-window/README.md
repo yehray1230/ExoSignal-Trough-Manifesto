@@ -114,14 +114,14 @@ The current default scenario in `config.json` uses:
 
 目前 `config.json` 的預設情境使用：
 
-- Observation range: `1800` to `7000`, sampled every `10` years.
-- 觀測年份範圍：`1800` 到 `7000`，每 `10` 年取樣。
+- Observation range: `1800` to `20000`, sampled every `100` years.
+- 觀測年份範圍：`1800` 到 `20000`，每 `100` 年取樣。
 - Observation epoch model: `continuous`.
 - 觀測年代模型：`continuous`。
 - Catalog target cap: `800`.
 - 目錄目標上限：`800`。
-- Monte Carlo uncertainty: enabled, with `50` sampled scenarios.
-- Monte Carlo 不確定性：啟用，含 `50` 組抽樣情境。
+- Monte Carlo uncertainty: enabled, with `50` sampled scenarios and `60000` internal samples for the baseline run.
+- Monte Carlo 不確定性：啟用，含 `50` 組抽樣情境；baseline run 使用 `60000` 組內部抽樣。
 - Drake terms: `fp = 0.9`, `ne = 0.2`, `fl = 0.25`, `fi = 0.08`, `fc = 0.2`.
 - Drake 參數：`fp = 0.9`、`ne = 0.2`、`fl = 0.25`、`fi = 0.08`、`fc = 0.2`。
 - Timing model: lognormal.
@@ -145,22 +145,16 @@ The current default scenario in `config.json` uses:
 
 ## Current Output Summary / 目前輸出摘要
 
-The current generated outputs indicate a broad, still-rising reception curve through the extended 20,000 CE simulation horizon rather than a sharp prediction.
+The current generated outputs indicate a broad, still-rising baseline reception curve through the extended 20,000 CE simulation horizon rather than a sharp prediction.
 
 目前生成的輸出顯示的是寬廣的 baseline 接收窗口，而不是尖銳的預測。
 
-- Baseline annual probability peaks near year `3400`.
-- Baseline 年度機率峰值約在 `3400` 年。
-- At the baseline peak, `probability_at_least_one_signal` is approximately `0.00623`.
-- 在 baseline 峰值處，`probability_at_least_one_signal` 約為 `0.00623`。
-- The baseline peak has a local 5%-95% uncertainty band of roughly `0.00426` to `0.00906`.
-- Baseline 峰值附近的局部 5%-95% 不確定性區間約為 `0.00426` 到 `0.00906`。
-- Monte Carlo median probability peaks near year `3500`, with `probability_p50` approximately `0.00671`.
-- Monte Carlo 中位數機率峰值約在 `3500` 年，`probability_p50` 約為 `0.00671`。
-- In the wider Monte Carlo band near the median peak, `probability_p05` is approximately `0.00091` and `probability_p95` is approximately `0.04488`.
-- 在中位數峰值附近較寬的 Monte Carlo 區間中，`probability_p05` 約為 `0.00091`，`probability_p95` 約為 `0.04488`。
-- The selected timing arrival-year density peaks around year-bin `3025`.
-- 所選時間模型的抵達年份密度峰值約在 year-bin `3025`。
+- Baseline annual probability is highest at the end of the configured horizon, year `20000`, with `probability_at_least_one_signal` approximately `0.04754`.
+- Baseline 年度機率在目前設定的模擬範圍末端 `20000` 年最高，`probability_at_least_one_signal` 約為 `0.04754`。
+- The separate Monte Carlo probability-band file also rises through year `20000`; its baseline column is approximately `0.05217`, and `probability_p50` is approximately `0.05472` at that endpoint.
+- 另一份 Monte Carlo 機率區間檔同樣一路上升到 `20000` 年；其 baseline 欄位在端點約為 `0.05217`，`probability_p50` 約為 `0.05472`。
+- The selected timing arrival-year density peaks around year-bin `3050`.
+- 所選時間模型的抵達年份密度峰值約在 year-bin `3050`。
 - The most influential assumptions in the current sensitivity ranking are `Intelligence fraction`, `Transmit power`, and `Communicative fraction`.
 - 目前敏感度排序中影響最大的假設是 `Intelligence fraction`、`Transmit power` 與 `Communicative fraction`。
 

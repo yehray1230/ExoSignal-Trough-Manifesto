@@ -410,13 +410,13 @@
             <select id="lang-select">
                 <option value="zh">繁體中文</option>
                 <option value="en">English (US)</option>
-                <option value="ja">日本語</option>
             </select>
             <label class="observation-toggle">
                 <input id="bl-observation-toggle" type="checkbox">
                 <span id="bl-observation-label">Use real BL observation times</span>
             </label>
             <a class="nav-link" id="lab-link" href="selection-bias-lab.html">Open Selection Bias Lab</a>
+            <a class="nav-link" id="drake-link" href="drake-signal-window/index.html">Open Drake Signal Window</a>
             <button class="nav-link" id="report-button" type="button">Export standalone report</button>
         </div>
         
@@ -568,6 +568,7 @@
                 visible: "可見",
                 of: "/",
                 labLink: "開啟選擇偏誤實驗室",
+                drakeLink: "開啟德雷克訊號時間窗",
                 targetPanelTitle: "已選目標診斷"
             },
             en: {
@@ -612,10 +613,11 @@
                 timePass: "Time-feasible",
                 energyPass: "Energy-feasible",
                 bothPass: "Both filters",
-                biasNote: "With these parameters, most ordinary civilizations remain invisible even if they exist; the observed sample is biased toward older and higher-energy sources.",
+                biasNote: "With these parameters, most ordinary civilizations fall outside the detectable sample even if they exist; the observed sample is biased toward older and higher-energy sources.",
                 visible: "visible",
                 of: "of",
                 labLink: "Open Selection Bias Lab",
+                drakeLink: "Open Drake Signal Window",
                 targetPanelTitle: "Selected Target Diagnostics"
             },
             ja: {
@@ -664,12 +666,16 @@
                 visible: "可視",
                 of: "/",
                 labLink: "選択バイアス実験室を開く",
+                drakeLink: "Drake Signal Window を開く",
                 targetPanelTitle: "選択ターゲット診断"
             }
         };
 
         const LANGUAGE_STORAGE_KEY = 'preferredLanguage';
-        let currentLang = localStorage.getItem(LANGUAGE_STORAGE_KEY) || 'zh';
+        const SUPPORTED_LANGUAGES = ['zh', 'en'];
+        let currentLang = SUPPORTED_LANGUAGES.includes(localStorage.getItem(LANGUAGE_STORAGE_KEY))
+            ? localStorage.getItem(LANGUAGE_STORAGE_KEY)
+            : 'zh';
         
         const earthHistory = [
             { year: 1895, power: 100 },
@@ -827,6 +833,7 @@
             const blObservationToggle = document.getElementById('bl-observation-toggle');
             const blObservationLabel = document.getElementById('bl-observation-label');
             const labLink = document.getElementById('lab-link');
+            const drakeLink = document.getElementById('drake-link');
             const reportButton = document.getElementById('report-button');
             const planetList = document.getElementById('planet-list');
             const infoPanel = document.getElementById('info-panel');
@@ -1458,6 +1465,7 @@ table{border-collapse:collapse;width:100%;background:white}th,td{border:1px soli
                 titleText.innerText = txt.title;
                 premiseText.innerText = txt.premise;
                 labLink.innerText = txt.labLink;
+                drakeLink.innerText = txt.drakeLink;
                 targetPanelTitle.innerText = txt.targetPanelTitle;
                 labelName.innerText = txt.name;
                 labelHost.innerText = txt.host;
@@ -1697,7 +1705,7 @@ table{border-collapse:collapse;width:100%;background:white}th,td{border:1px soli
                 if(activeIndex !== -1) selectPlanet(activeIndex); // Refresh info panel texts
             });
             window.addEventListener('storage', (event) => {
-                if (event.key === LANGUAGE_STORAGE_KEY && event.newValue && i18n[event.newValue]) {
+                if (event.key === LANGUAGE_STORAGE_KEY && event.newValue && SUPPORTED_LANGUAGES.includes(event.newValue)) {
                     currentLang = event.newValue;
                     updateUI();
                     if(activeIndex !== -1) selectPlanet(activeIndex);

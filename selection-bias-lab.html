@@ -259,9 +259,9 @@
                 <select id="lang-select" aria-label="Language">
                     <option value="zh">繁體中文</option>
                     <option value="en">English (US)</option>
-                    <option value="ja">日本語</option>
                 </select>
                 <a id="radar-link" href="index.html">Return to 3D Signal Radar</a>
+                <a id="drake-link" href="drake-signal-window/index.html">Open Drake Signal Window</a>
                 <a id="readme-link" href="README.md">Read Methodological Notes</a>
                 <button id="report-button" type="button">Export standalone report</button>
             </nav>
@@ -365,12 +365,16 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         const LANGUAGE_STORAGE_KEY = 'preferredLanguage';
-        let currentLang = localStorage.getItem(LANGUAGE_STORAGE_KEY) || 'zh';
+        const SUPPORTED_LANGUAGES = ['zh', 'en'];
+        let currentLang = SUPPORTED_LANGUAGES.includes(localStorage.getItem(LANGUAGE_STORAGE_KEY))
+            ? localStorage.getItem(LANGUAGE_STORAGE_KEY)
+            : 'zh';
         const i18n = {
             zh: {
                 pageTitle: '篩選偏差實驗室：星際射電偵測中的物理過濾',
                 pageSubtitle: '本儀表板將系外行星樣本重新表述為一個觀測選擇實驗，用以展示光速延遲、平方反比衰減、接收靈敏度與假設發射功率如何把廣泛的候選族群轉換為偏向高門檻案例的可偵測樣本。',
                 radarLink: '返回 3D 訊號雷達',
+                drakeLink: '開啟德雷克訊號時間窗',
                 readmeLink: '閱讀方法說明',
                 power: '假設全向發射功率',
                 sensitivity: '接收靈敏度增益',
@@ -415,6 +419,7 @@
                 pageTitle: 'Selection Bias Lab: Physical Filtering in Interstellar Radio Detection',
                 pageSubtitle: 'This dashboard reframes the exoplanet sample as an observational-selection experiment. It visualizes how light-speed delay, inverse-square attenuation, receiver sensitivity, and assumed transmitter power transform a broad target population into a biased set of detectable high-threshold cases.',
                 radarLink: 'Return to 3D Signal Radar',
+                drakeLink: 'Open Drake Signal Window',
                 readmeLink: 'Read Methodological Notes',
                 power: 'Assumed isotropic transmitter power',
                 sensitivity: 'Receiver sensitivity gain',
@@ -459,6 +464,7 @@
                 pageTitle: '選択バイアス実験室：星間電波検出における物理的フィルタリング',
                 pageSubtitle: 'このダッシュボードは、系外惑星サンプルを観測選択実験として再構成します。光速遅延、逆二乗減衰、受信感度、仮定送信電力が、広い候補集団を高閾値の検出可能事例へ偏らせる過程を可視化します。',
                 radarLink: '3D信号レーダーへ戻る',
+                drakeLink: 'Drake Signal Window を開く',
                 readmeLink: '方法論ノートを読む',
                 power: '仮定全方向送信電力',
                 sensitivity: '受信感度ゲイン',
@@ -514,6 +520,7 @@
             pageTitle: document.getElementById('page-title'),
             pageSubtitle: document.getElementById('page-subtitle'),
             radarLink: document.getElementById('radar-link'),
+            drakeLink: document.getElementById('drake-link'),
             readmeLink: document.getElementById('readme-link'),
             power: document.getElementById('power-slider'),
             sensitivity: document.getElementById('sensitivity-slider'),
@@ -848,6 +855,7 @@
             el.pageTitle.innerText = tx.pageTitle;
             el.pageSubtitle.innerText = tx.pageSubtitle;
             el.radarLink.innerText = tx.radarLink;
+            el.drakeLink.innerText = tx.drakeLink;
             el.readmeLink.innerText = tx.readmeLink;
             el.labelPower.innerText = tx.power;
             el.labelSensitivity.innerText = tx.sensitivity;
@@ -1072,7 +1080,7 @@ table{border-collapse:collapse;width:100%;background:white}th,td{border:1px soli
             applyLanguage(true);
         });
         window.addEventListener('storage', event => {
-            if (event.key === LANGUAGE_STORAGE_KEY && event.newValue && i18n[event.newValue]) {
+            if (event.key === LANGUAGE_STORAGE_KEY && event.newValue && SUPPORTED_LANGUAGES.includes(event.newValue)) {
                 currentLang = event.newValue;
                 applyLanguage(true);
             }

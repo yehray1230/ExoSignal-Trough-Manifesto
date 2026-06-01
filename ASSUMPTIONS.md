@@ -89,12 +89,13 @@ $$P_{\text{required}} = K \times d_{\text{ly}}^2$$
 $$F_{\text{min}} = \frac{K}{4\pi (9.4607 \times 10^{15})^2} \approx \frac{1.12 \times 10^{11}}{1.125 \times 10^{33}} \approx 10^{-22} \text{ W/m}^2$$
 
 ### 5.2. 天文物理合理性
-在無線電地外文明搜尋（SETI）中，$10^{-22} \text{ W/m}^2$ 是一個標準且非常合理的觀測靈敏度基準。
-依據射電天文學的輻射計公式（Radiometer Equation），當望遠鏡在 1.4 GHz (L-band) 的系統等效通量密度（SEFD）約為 2 Jansky ($2 \times 10^{-26} \text{ W/m}^2/\text{Hz}$)，在接收通道頻寬 $\Delta\nu = 10 \text{ kHz}$、積分時間 $\tau = 300$ 秒，且設定訊噪比門檻 $\text{S/N} = 10$、雙偏振通道數 $n_{\text{pol}} = 2$ 時：
+在無線電地外文明搜尋（SETI）中，$10^{-22} \text{ W/m}^2$ 應被視為本專案採用的情境化積分通量門檻，而不是任一望遠鏡在所有觀測模式下的固定靈敏度。它的量級可由窄頻搜尋常用的輻射計公式（Radiometer Equation）作為粗略檢查。
 
-$$F_{\text{min}} = \text{S/N} \times \frac{\text{SEFD}}{\sqrt{n_{\text{pol}} \Delta\nu \tau}} \approx 10 \times \frac{2 \times 10^{-26}}{\sqrt{2 \times 10^4 \times 300}} \approx 1.3 \times 10^{-22} \text{ W/m}^2$$
+當望遠鏡在 1.4 GHz (L-band) 的系統等效通量密度（SEFD）約為 2 Jansky ($2 \times 10^{-26} \text{ W/m}^2/\text{Hz}$)，接收通道頻寬 $\Delta\nu = 10 \text{ kHz}$、積分時間 $\tau = 300$ 秒，且設定訊噪比門檻 $\text{S/N} = 10$、雙偏振通道數 $n_{\text{pol}} = 2$ 時，最低可偵測通量密度可粗略寫為：
 
-這表明本專案採用的 $K$ 常數對應於現代大口徑望遠鏡（如 FAST 或 GBT）在進行窄頻 SETI 搜尋時的典型物理極限。
+$$S_{\text{min}} = \text{S/N} \times \frac{\text{SEFD}}{\sqrt{n_{\text{pol}} \Delta\nu \tau}} \approx 10 \times \frac{2 \times 10^{-26}}{\sqrt{2 \times 10^4 \times 300}} \approx 8.2 \times 10^{-29} \text{ W/m}^2/\text{Hz}$$
+
+若再乘上假設的窄頻通道寬度，可得到約 $10^{-24}$ 到 $10^{-23} \text{ W/m}^2$ 等級的通量門檻；不同的 SEFD、頻寬、積分時間、訊號漂移率與搜尋管線會使結果改變數個數量級。本專案採用的 $K = 1.12 \times 10^{11} \text{ W/ly}^2$ 因此應解讀為保守且便於視覺化的 FAST-like 情境係數，而不是現代大口徑望遠鏡的唯一或最佳物理極限。
 
 其中 `distance_ly` 是由 NASA Exoplanet Archive 中的 `sy_dist`（秒差距）欄位換算而來：
 
@@ -118,7 +119,7 @@ distance_ly = sy_dist * 3.26156
 - **Parkes Observatory (64m 口徑)**：$\text{HPBW} \approx 14' \approx 0.23^\circ$
 - **FAST (300m 有效口徑)**：$\text{HPBW} \approx 3' \approx 0.05^\circ$
 
-使用 $0.2^\circ$ 作為空間匹配半徑，其物理意義在於**確保該系外行星系統剛好位於上述單口徑望遠鏡的主波束觀測視場之內**，使得該系外行星與突破聆聽的觀測星表之間具備物理觀測相關性。
+使用 $0.2^\circ$ 作為空間匹配半徑，其物理意義在於提供一個與 GBT/Parkes L-band 主波束尺度相近的寬鬆幾何關聯門檻。由於 FAST 在 L-band 的主波束明顯更窄，這個半徑不應被解讀為「所有匹配目標都位於 FAST 主波束內」，也不代表 Breakthrough Listen 已對該系外行星進行完整、同頻段或同時間窗口的訊號搜尋。
 
 ### 6.2. FAST 基準的適用界線
 本模型中的 FAST baseline 代表：
@@ -198,6 +199,9 @@ $$p_{\text{catalog}} = \text{sigmoid}(a - b \cdot d + c \cdot q)$$
 - 地球必然能偵測到先進文明。
 - 目前的簡化功率模型等同完整射電天文儀器模型。
 - FAST baseline 等同 FAST 在所有觀測條件下的固定最低可接收功率。
+
+> [!NOTE]
+> 關於本專案物理模型、星表數據之詳細邊界限制與完整非宣稱清單，請參閱獨立文件：[LIMITATIONS.md](LIMITATIONS.md)。
 
 ## 9. 術語對照 / Terminology
 
